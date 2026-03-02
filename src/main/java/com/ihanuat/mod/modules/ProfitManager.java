@@ -1,6 +1,9 @@
 package com.ihanuat.mod.modules;
 
+import com.ihanuat.mod.MacroConfig;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -12,13 +15,11 @@ public class ProfitManager {
     private static final Map<String, Long> lifetimeCounts = new LinkedHashMap<>();
     private static final Map<String, Long> prevInventoryCounts = new LinkedHashMap<>();
     private static final Map<String, Double> bazaarPrices = new LinkedHashMap<>();
+    private static final Map<String, Long> petLvl1Prices = new java.util.HashMap<>();
+    private static final Map<String, Long> petMaxLvlPrices = new java.util.HashMap<>();
     private static long lastCultivatingValue = -1;
     private static String currentFarmedCrop = "Wheat";
     private static long lastBazaarFetchTime = 0;
-
-    // Last fetched Rose Dragon BIN prices (for debug output)
-    private static long lastRdLvl1Price = 0;
-    private static long lastRdLvl200Price = 0;
 
     private static final java.io.File LIFETIME_FILE = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir()
             .resolve("pest_macro_profit_lifetime.json").toFile();
@@ -53,7 +54,7 @@ public class ProfitManager {
     private static final Set<String> PETS_SET = Set.of("Epic Slug", "Legendary Slug", "Rat");
 
     private static final Set<String> MISC_DROPS_SET = Set.of("Cropie", "Squash", "Fermento", "Helianthus",
-            "Tool Exp Capsule", "Rose Dragon XP");
+            "Tool Exp Capsule", "Pet XP");
 
     private static final Set<String> BASE_CROPS = Set.of(
             "Wheat", "Potato", "Carrot", "Melon Slice", "Pumpkin",
@@ -107,8 +108,8 @@ public class ProfitManager {
             // Misc Drops
             Map.entry("Cropie", 25000.0), Map.entry("Squash", 75000.0), Map.entry("Fermento", 250000.0),
             Map.entry("Helianthus", 0.0), Map.entry("Tool Exp Capsule", 100000.0),
-            // Rose Dragon XP (price per XP point, will be fetched)
-            Map.entry("Rose Dragon XP", 0.0));
+            // Pet XP (price per XP point, will be fetched)
+            Map.entry("Pet XP", 0.0));
 
     private static final Map<String, String> BAZAAR_MAPPING = Map.of(
             "Sunder VI Book", "ENCHANTMENT_SUNDER_6",
@@ -137,7 +138,8 @@ public class ProfitManager {
 
     private static final Pattern STRIP_COLOR_PATTERN = Pattern.compile("(?i)§[0-9A-FK-OR]");
 
-    public static void handleChatMessage(String text) {
+    public static void handleChatMessage(Component component) {
+        String text = toLegacyText(component);
         // PET DROP needs raw text to detect color-coded rarity
         Matcher petMatcher = PET_DROP_PATTERN.matcher(text);
         if (petMatcher.find()) {
@@ -195,9 +197,48 @@ public class ProfitManager {
         }
     }
 
+    private static String toLegacyText(Component component) {
+        StringBuilder sb = new StringBuilder();
+        component.visit((style, part) -> {
+            net.minecraft.network.chat.TextColor color = style.getColor();
+            if (color != null) {
+                int rgb = color.getValue();
+                String code = "f";
+                if (rgb == 16755200)
+                    code = "6"; // Gold
+                else if (rgb == 11141290)
+                    code = "5"; // Dark Purple
+                else if (rgb == 5636095)
+                    code = "b"; // Aqua
+                else if (rgb == 16733695)
+                    code = "d"; // Light Purple
+                else if (rgb == 5592405)
+                    code = "8"; // Dark Gray
+                else if (rgb == 11184810)
+                    code = "7"; // Gray
+                else if (rgb == 5592575)
+                    code = "9"; // Blue
+                else if (rgb == 5635925)
+                    code = "a"; // Green
+                else if (rgb == 16711680)
+                    code = "c"; // Red
+                else if (rgb == 16777045)
+                    code = "e"; // Yellow
+                sb.append("§").append(code);
+            }
+            if (style.isBold())
+                sb.append("§l");
+            if (style.isItalic())
+                sb.append("§o");
+            sb.append(part);
+            return java.util.Optional.empty();
+        }, Style.EMPTY);
+        return sb.toString();
+    }
+
     private static void addDrop(String itemName, long count) {
         // Handle items with suffix counts like "Mutant Nether Wart X9"
-        String processedName = itemName.trim();
+        String processedName = STRIP_COLOR_PATTERN.matcher(itemName).replaceAll("").trim();
         long multiplier = 1;
 
         Matcher suffixMatcher = Pattern.compile("\\s+[xX](\\d+)$").matcher(processedName);
@@ -258,6 +299,9 @@ public class ProfitManager {
         }
 
         String displayName = name.replace("Enchanted ", "Ench. ");
+        if (name.startsWith("Pet XP (")) {
+            displayName = name.substring(7); // Keep "(Name) XP"
+        }
         return color + "§l[" + tag + "] §f" + displayName;
     }
 
@@ -361,7 +405,7 @@ public class ProfitManager {
 
     public static void reset() {
         sessionCounts.clear();
-        RoseDragonXpTracker.reset();
+        PetXpTracker.reset();
     }
 
     public static void resetLifetime() {
@@ -418,6 +462,8 @@ public class ProfitManager {
     public static boolean isPredefinedTrackedItem(String itemName) {
         if (itemName == null)
             return false;
+        if (itemName.startsWith("Pet XP ("))
+            return true;
         for (String tracked : TRACKED_ITEMS.keySet()) {
             if (tracked.equalsIgnoreCase(itemName)) {
                 return true;
@@ -499,7 +545,7 @@ public class ProfitManager {
                 lastCultivatingValue = newValue;
 
                 // Track Rose Dragon XP from tab list (runs every tick regardless)
-                RoseDragonXpTracker.update(client);
+                PetXpTracker.update(client);
 
                 // Refresh bazaar prices every hour
                 long now = System.currentTimeMillis();
@@ -511,8 +557,8 @@ public class ProfitManager {
         }
         lastCultivatingValue = -1;
 
-        // Track Rose Dragon XP from tab list
-        RoseDragonXpTracker.update(client);
+        // Track Pet XP from tab list
+        PetXpTracker.update(client);
 
         // Refresh bazaar prices every hour
         long now = System.currentTimeMillis();
@@ -525,28 +571,39 @@ public class ProfitManager {
      * Sends the current Rose Dragon BIN price data to the player's chat.
      * Call this when the macro starts so you can verify the fetched prices.
      */
-    public static void printRoseDragonPriceDebug(net.minecraft.client.Minecraft client) {
+    public static void printPetXpPriceDebug(net.minecraft.client.Minecraft client) {
         if (client.player == null)
             return;
-        String lvl1Str = lastRdLvl1Price > 0 ? String.format("%,d", lastRdLvl1Price) : "not fetched";
-        String lvl200Str = lastRdLvl200Price > 0 ? String.format("%,d", lastRdLvl200Price) : "not found";
-        double pricePerXp = bazaarPrices.getOrDefault("Rose Dragon XP", 0.0);
+
         client.player.displayClientMessage(
-                net.minecraft.network.chat.Component.literal(
-                        "§b[Rose Dragon XP] §fLvl1 BIN: §e" + lvl1Str
-                                + "  §fLvl200 BIN: §e" + lvl200Str
-                                + "  §fCoins/XP: §a" + String.format("%.3f", pricePerXp)),
-                false);
+                net.minecraft.network.chat.Component.literal("§b[Pet XP Tracker] §fCurrently tracking:"), false);
+
+        for (String petConfig : MacroConfig.petTrackerList) {
+            MacroConfig.PetInfo info = new MacroConfig.PetInfo(petConfig);
+            long lvl1 = petLvl1Prices.getOrDefault(info.name, 0L);
+            long lvlMax = petMaxLvlPrices.getOrDefault(info.name, 0L);
+            double pricePerXp = bazaarPrices.getOrDefault("Pet XP (" + info.name + ")", 0.0);
+
+            String lvl1Str = lvl1 > 0 ? String.format("%,d", lvl1) : "not found";
+            String lvlMaxStr = lvlMax > 0 ? String.format("%,d", lvlMax) : "not found";
+            String marginStr = pricePerXp > 0 ? String.format("%.3f", pricePerXp) : "not fetched";
+
+            client.player.displayClientMessage(
+                    net.minecraft.network.chat.Component.literal(
+                            " §8> §e" + info.name + "§f: §7L1: §6" + lvl1Str + " §7Max: §6" + lvlMaxStr + " §7-> §a"
+                                    + marginStr + " §7C/XP"),
+                    false);
+        }
     }
 
     /**
-     * Called by {@link RoseDragonXpTracker} to record XP gained this tick.
+     * Called by {@link PetXpTracker} to record XP gained this tick.
      * Uses the same session/lifetime accounting as other drops.
      */
-    public static void addRoseDragonXp(long xpAmount) {
+    public static void addPetXp(String petName, long xpAmount) {
         if (xpAmount <= 0)
             return;
-        addDrop("Rose Dragon XP", xpAmount);
+        addDrop("Pet XP (" + petName + ")", xpAmount);
     }
 
     private static synchronized void fetchBazaarPrices() {
@@ -575,88 +632,77 @@ public class ProfitManager {
                     System.err.println("Failed to fetch bazaar price for " + itemName + ": " + e.getMessage());
                 }
             }
-            // Also fetch Rose Dragon XP price
-            fetchRoseDragonXpPrice(client);
+            // Also fetch Pet XP price
+            fetchPetXpPrice(client);
         }).start();
     }
 
     /**
-     * Fetches the lowest BIN for a level-1 and a level-200 Rose Dragon, then
-     * derives the coin value of a single XP point as:
-     * (price_lvl200 - price_lvl1) / TOTAL_XP_1_TO_200
-     *
-     * <p>
-     * Level 1 : /api/item/price/PET_ROSE_DRAGON/bin → lowest field
-     * <p>
-     * Level 200:
-     * /api/auctions/tag/PET_ROSE_DRAGON/active/bin?filter=ItemNameContains%3D%5BLvl+200%5D
-     * (filtered by itemName containing "[Lvl 200]" — the unfiltered endpoint
-     * sorts cheapest-first so level-200 pets never appear in the default page)
+     * Fetches the lowest BIN for level-1 and level-max for all configured pets,
+     * deriving the coin value of a single XP point for each.
      */
-    private static void fetchRoseDragonXpPrice(java.net.http.HttpClient http) {
-        // Total XP from level 1 to level 200 (cumulative, from rose_dragon.txt)
-        final long TOTAL_XP = 210_255_385L;
+    private static void fetchPetXpPrice(java.net.http.HttpClient http) {
+        for (String petConfig : MacroConfig.petTrackerList) {
+            MacroConfig.PetInfo info = new MacroConfig.PetInfo(petConfig);
+            long[] table = PetXpTracker.getXpTable(info.rarity, info.maxLevel);
+            final long TOTAL_XP = table[info.maxLevel];
 
-        try {
-            // ── Level 1 lowest BIN ───────────────────────────────────────────
-            long lvl1Price = 0;
-            java.net.http.HttpRequest req1 = java.net.http.HttpRequest.newBuilder()
-                    .uri(java.net.URI.create("https://sky.coflnet.com/api/item/price/PET_ROSE_DRAGON/bin"))
-                    .GET().build();
-            java.net.http.HttpResponse<String> resp1 = http.send(req1,
-                    java.net.http.HttpResponse.BodyHandlers.ofString());
-            if (resp1.statusCode() == 200) {
-                BinResponse bin = GSON.fromJson(resp1.body(), BinResponse.class);
-                if (bin != null && bin.lowest > 0) {
-                    lvl1Price = (long) bin.lowest;
+            try {
+                // ── Level 1 lowest BIN ───────────────────────────────────────────
+                long lvl1Price = 0;
+                java.net.http.HttpRequest req1 = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create("https://sky.coflnet.com/api/item/price/" + info.tag + "/bin"))
+                        .GET().build();
+                java.net.http.HttpResponse<String> resp1 = http.send(req1,
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp1.statusCode() == 200) {
+                    BinResponse bin = GSON.fromJson(resp1.body(), BinResponse.class);
+                    if (bin != null && bin.lowest > 0) {
+                        lvl1Price = (long) bin.lowest;
+                    }
                 }
-            }
 
-            // ── Level 200 lowest BIN ───────────────────────────────────────────────
-            // Filter via ItemNameContains so only [Lvl 200] Rose Dragon listings
-            // are returned (unfiltered endpoint sorts cheapest-first, so level-200
-            // pets never appear in the default page).
-            long lvl200Price = 0;
-            java.net.http.HttpRequest req2 = java.net.http.HttpRequest.newBuilder()
-                    .uri(java.net.URI.create(
-                            "https://sky.coflnet.com/api/auctions/tag/PET_ROSE_DRAGON/active/bin"
-                                    + "?ItemNameContains=%5BLvl+200%5D"))
-                    .GET().build();
-            java.net.http.HttpResponse<String> resp2 = http.send(req2,
-                    java.net.http.HttpResponse.BodyHandlers.ofString());
-            if (resp2.statusCode() == 200) {
-                java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<java.util.List<ActiveBinEntry>>() {
-                }.getType();
-                java.util.List<ActiveBinEntry> listings = GSON.fromJson(resp2.body(), listType);
-                if (listings != null) {
-                    for (ActiveBinEntry listing : listings) {
-                        // Primary check: itemName field contains "[Lvl 200]"
-                        if (listing.itemName == null || !listing.itemName.contains("[Lvl 200]"))
-                            continue;
-                        if (listing.startingBid > 0) {
-                            if (lvl200Price == 0 || listing.startingBid < lvl200Price) {
-                                lvl200Price = listing.startingBid;
+                // ── Max Level lowest BIN ───────────────────────────────────────────────
+                long lvlMaxPrice = 0;
+                String filter = java.net.URLEncoder.encode("[Lvl " + info.maxLevel + "]", "UTF-8");
+                java.net.http.HttpRequest req2 = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(
+                                "https://sky.coflnet.com/api/auctions/tag/" + info.tag + "/active/bin"
+                                        + "?ItemNameContains=" + filter))
+                        .GET().build();
+                java.net.http.HttpResponse<String> resp2 = http.send(req2,
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp2.statusCode() == 200) {
+                    java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<java.util.List<ActiveBinEntry>>() {
+                    }.getType();
+                    java.util.List<ActiveBinEntry> listings = GSON.fromJson(resp2.body(), listType);
+                    if (listings != null) {
+                        for (ActiveBinEntry listing : listings) {
+                            if (listing.itemName == null || !listing.itemName.contains("[Lvl " + info.maxLevel + "]"))
+                                continue;
+                            if (listing.startingBid > 0) {
+                                if (lvlMaxPrice == 0 || listing.startingBid < lvlMaxPrice) {
+                                    lvlMaxPrice = listing.startingBid;
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // ── Calculate price per XP ────────────────────────────────────────
-            lastRdLvl1Price = lvl1Price;
-            lastRdLvl200Price = lvl200Price;
-            if (lvl200Price > lvl1Price && lvl1Price > 0) {
-                double pricePerXp = (double) (lvl200Price - lvl1Price) / TOTAL_XP;
-                if (pricePerXp > 0) {
-                    bazaarPrices.put("Rose Dragon XP", pricePerXp);
-                    System.out.println("[Ihanuat] Rose Dragon XP price: " + String.format("%.4f", pricePerXp)
-                            + " coins/XP (lvl1=" + lvl1Price + ", lvl200=" + lvl200Price + ")");
+                if (lvl1Price > 0)
+                    petLvl1Prices.put(info.name, lvl1Price);
+                if (lvlMaxPrice > 0)
+                    petMaxLvlPrices.put(info.name, lvlMaxPrice);
+
+                if (lvlMaxPrice > lvl1Price && lvl1Price > 0) {
+                    double pricePerXp = (double) (lvlMaxPrice - lvl1Price) / TOTAL_XP;
+                    if (pricePerXp > 0) {
+                        bazaarPrices.put("Pet XP (" + info.name + ")", pricePerXp);
+                    }
                 }
-            } else if (lvl200Price == 0) {
-                System.out.println("[Ihanuat] No level-200 Rose Dragon BINs found; XP price not updated.");
+            } catch (Exception e) {
+                System.err.println("[Ihanuat] Failed to fetch Pet XP price for " + info.name + ": " + e.getMessage());
             }
-        } catch (Exception e) {
-            System.err.println("[Ihanuat] Failed to fetch Rose Dragon XP price: " + e.getMessage());
         }
     }
 

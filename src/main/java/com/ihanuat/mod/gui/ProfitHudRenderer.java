@@ -202,8 +202,8 @@ public class ProfitHudRenderer {
                 long lineProfit = (long) (price * count);
 
                 String categorizedName = ProfitManager.getCategorizedName(itemName);
-                // Rose Dragon XP: show XP total rather than an item count
-                String countDisplay = itemName.equals("Rose Dragon XP")
+                // Pet XP: show XP total rather than an item count
+                String countDisplay = itemName.equals("Pet XP")
                         ? String.format("%,d XP", count)
                         : "x" + String.format("%,d", count);
                 String labelText = categorizedName + " §r(" + countDisplay + ")";

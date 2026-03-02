@@ -36,23 +36,6 @@ public class ConfigScreenFactory {
                                 .build());
 
                 general.addEntry(builder.entryBuilder()
-                                .startBooleanToggle(Component.literal("Show Session Profit HUD"),
-                                                MacroConfig.showSessionProfitHud)
-                                .setDefaultValue(MacroConfig.DEFAULT_SHOW_SESSION_PROFIT_HUD)
-                                .setTooltip(Component.literal("Display the profit tracker for your current session."))
-                                .setSaveConsumer(newValue -> MacroConfig.showSessionProfitHud = newValue)
-                                .build());
-
-                general.addEntry(builder.entryBuilder()
-                                .startBooleanToggle(Component.literal("Show Lifetime Profit HUD"),
-                                                MacroConfig.showLifetimeHud)
-                                .setDefaultValue(MacroConfig.DEFAULT_SHOW_LIFETIME_HUD)
-                                .setTooltip(Component.literal(
-                                                "Display a persistent profit tracker that doesn't reset across game restarts."))
-                                .setSaveConsumer(newValue -> MacroConfig.showLifetimeHud = newValue)
-                                .build());
-
-                general.addEntry(builder.entryBuilder()
                                 .startEnumSelector(Component.literal("Wardrobe/Rod Swap Mode"),
                                                 MacroConfig.GearSwapMode.class,
                                                 MacroConfig.gearSwapMode)
@@ -79,22 +62,6 @@ public class ConfigScreenFactory {
                                                 100, 3000)
                                 .setDefaultValue(MacroConfig.DEFAULT_ROTATION_TIME)
                                 .setSaveConsumer(newValue -> MacroConfig.rotationTime = newValue)
-                                .build());
-
-                general.addEntry(builder.entryBuilder()
-                                .startBooleanToggle(Component.literal("Persist Session Timer On Pause"),
-                                                MacroConfig.persistSessionTimer)
-                                .setDefaultValue(MacroConfig.DEFAULT_PERSIST_SESSION_TIMER)
-                                .setSaveConsumer(newValue -> MacroConfig.persistSessionTimer = newValue)
-                                .build());
-
-                general.addEntry(builder.entryBuilder()
-                                .startBooleanToggle(Component.literal("Compact Profit Calculator"),
-                                                MacroConfig.compactProfitCalculator)
-                                .setDefaultValue(MacroConfig.DEFAULT_COMPACT_PROFIT_CALCULATOR)
-                                .setTooltip(Component.literal(
-                                                "Condenses the profit panel into Categories (Crops, Pest Items, Pets) instead of individual items."))
-                                .setSaveConsumer(newValue -> MacroConfig.compactProfitCalculator = newValue)
                                 .build());
 
                 general.addEntry(builder.entryBuilder()
@@ -202,6 +169,110 @@ public class ConfigScreenFactory {
                                 .setSaveConsumer(newValue -> MacroConfig.wardrobeSlotVisitor = newValue)
                                 .build());
 
+                ConfigCategory profitTracker = builder.getOrCreateCategory(Component.literal("Profit Calculator"));
+
+                profitTracker.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component.literal("Show Session Profit HUD"),
+                                                MacroConfig.showSessionProfitHud)
+                                .setDefaultValue(MacroConfig.DEFAULT_SHOW_SESSION_PROFIT_HUD)
+                                .setTooltip(Component.literal("Display the profit tracker for your current session."))
+                                .setSaveConsumer(newValue -> MacroConfig.showSessionProfitHud = newValue)
+                                .build());
+
+                profitTracker.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component.literal("Show Lifetime Profit HUD"),
+                                                MacroConfig.showLifetimeHud)
+                                .setDefaultValue(MacroConfig.DEFAULT_SHOW_LIFETIME_HUD)
+                                .setTooltip(Component.literal(
+                                                "Display a persistent profit tracker that doesn't reset across game restarts."))
+                                .setSaveConsumer(newValue -> MacroConfig.showLifetimeHud = newValue)
+                                .build());
+
+                profitTracker.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component.literal("Persist Session Timer On Pause"),
+                                                MacroConfig.persistSessionTimer)
+                                .setDefaultValue(MacroConfig.DEFAULT_PERSIST_SESSION_TIMER)
+                                .setSaveConsumer(newValue -> MacroConfig.persistSessionTimer = newValue)
+                                .build());
+
+                profitTracker.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component.literal("Compact Profit Calculator"),
+                                                MacroConfig.compactProfitCalculator)
+                                .setDefaultValue(MacroConfig.DEFAULT_COMPACT_PROFIT_CALCULATOR)
+                                .setTooltip(Component.literal(
+                                                "Condenses the profit panel into Categories (Crops, Pest Items, Pets) instead of individual items."))
+                                .setSaveConsumer(newValue -> MacroConfig.compactProfitCalculator = newValue)
+                                .build());
+
+                profitTracker.addEntry(builder.entryBuilder()
+                                .startStrList(Component.literal("Pet Tracker List"),
+                                                MacroConfig.petTrackerList)
+                                .setDefaultValue(MacroConfig.DEFAULT_PET_TRACKER_LIST)
+                                .setTooltip(Component.literal(
+                                                "Format: TAG:Name:MaxLevel:Rarity (e.g. PET_ELEPHANT:Elephant:100:LEGENDARY)"))
+                                .setExpanded(true)
+                                .setSaveConsumer(newValue -> MacroConfig.petTrackerList = newValue)
+                                .build());
+
+                profitTracker.addEntry(new ButtonEntry(
+                                Component.literal("Reset Session Profit"),
+                                Component.literal("Clears drops from the current session ONLY."),
+                                button -> {
+                                        ProfitManager.reset();
+                                        Minecraft client = Minecraft.getInstance();
+                                        if (client.player != null) {
+                                                client.player.displayClientMessage(
+                                                                Component.literal(
+                                                                                "\u00A7aSession Profit has been reset!"),
+                                                                true);
+                                        }
+                                }));
+
+                profitTracker.addEntry(new ButtonEntry(
+                                Component.literal("Reset Lifetime Profit"),
+                                Component.literal("PERMANENTLY clears all lifetime tracked drops."),
+                                button -> {
+                                        ProfitManager.resetLifetime();
+                                        Minecraft client = Minecraft.getInstance();
+                                        if (client.player != null) {
+                                                client.player.displayClientMessage(
+                                                                Component.literal(
+                                                                                "\u00A7cLifetime Profit has been reset!"),
+                                                                true);
+                                        }
+                                }));
+
+                profitTracker.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component
+                                                .literal("Auto George Sell (requires abiphone with George contact)"),
+                                                MacroConfig.autoGeorgeSell)
+                                .setDefaultValue(MacroConfig.DEFAULT_AUTO_GEORGE_SELL)
+                                .setSaveConsumer(newValue -> MacroConfig.autoGeorgeSell = newValue)
+                                .build());
+
+                profitTracker.addEntry(builder.entryBuilder()
+                                .startIntSlider(Component.literal("George Sell Threshold (Pets)"),
+                                                MacroConfig.georgeSellThreshold, 1, 35)
+                                .setDefaultValue(MacroConfig.DEFAULT_GEORGE_SELL_THRESHOLD)
+                                .setSaveConsumer(newValue -> MacroConfig.georgeSellThreshold = newValue)
+                                .build());
+
+                profitTracker.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component
+                                                .literal("Custom Autosell (triggers on opening booster cookie menu)"),
+                                                MacroConfig.autoBoosterCookie)
+                                .setDefaultValue(MacroConfig.DEFAULT_AUTO_BOOSTER_COOKIE)
+                                .setSaveConsumer(newValue -> MacroConfig.autoBoosterCookie = newValue)
+                                .build());
+
+                profitTracker.addEntry(builder.entryBuilder()
+                                .startStrList(Component.literal("Booster Cookie Autosell Items"),
+                                                MacroConfig.boosterCookieItems)
+                                .setDefaultValue(MacroConfig.DEFAULT_BOOSTER_COOKIE_ITEMS)
+                                .setExpanded(true)
+                                .setSaveConsumer(newValue -> MacroConfig.boosterCookieItems = newValue)
+                                .build());
+
                 ConfigCategory dynamicRest = builder.getOrCreateCategory(Component.literal("Dynamic Rest"));
                 dynamicRest.addEntry(builder.entryBuilder()
                                 .startIntField(Component.literal("Scripting Time (Minutes)"),
@@ -267,37 +338,6 @@ public class ConfigScreenFactory {
                                 .build());
 
                 qol.addEntry(builder.entryBuilder()
-                                .startBooleanToggle(Component
-                                                .literal("Auto George Sell (requires abiphone with George contact)"),
-                                                MacroConfig.autoGeorgeSell)
-                                .setDefaultValue(MacroConfig.DEFAULT_AUTO_GEORGE_SELL)
-                                .setSaveConsumer(newValue -> MacroConfig.autoGeorgeSell = newValue)
-                                .build());
-
-                qol.addEntry(builder.entryBuilder()
-                                .startIntSlider(Component.literal("George Sell Threshold (Pets)"),
-                                                MacroConfig.georgeSellThreshold, 1, 35)
-                                .setDefaultValue(MacroConfig.DEFAULT_GEORGE_SELL_THRESHOLD)
-                                .setSaveConsumer(newValue -> MacroConfig.georgeSellThreshold = newValue)
-                                .build());
-
-                qol.addEntry(builder.entryBuilder()
-                                .startBooleanToggle(Component
-                                                .literal("Custom Autosell (triggers on opening booster cookie menu)"),
-                                                MacroConfig.autoBoosterCookie)
-                                .setDefaultValue(MacroConfig.DEFAULT_AUTO_BOOSTER_COOKIE)
-                                .setSaveConsumer(newValue -> MacroConfig.autoBoosterCookie = newValue)
-                                .build());
-
-                qol.addEntry(builder.entryBuilder()
-                                .startStrList(Component.literal("Booster Cookie Autosell Items"),
-                                                MacroConfig.boosterCookieItems)
-                                .setDefaultValue(MacroConfig.DEFAULT_BOOSTER_COOKIE_ITEMS)
-                                .setExpanded(true)
-                                .setSaveConsumer(newValue -> MacroConfig.boosterCookieItems = newValue)
-                                .build());
-
-                qol.addEntry(builder.entryBuilder()
                                 .startBooleanToggle(Component.literal(
                                                 "Enable PlotTP Rewarp (for hyper-optimized farms that have startpos as plottp rewarp)"),
                                                 MacroConfig.enablePlotTpRewarp)
@@ -317,34 +357,6 @@ public class ConfigScreenFactory {
                                 .setDefaultValue(MacroConfig.DEFAULT_SEND_DISCORD_STATUS)
                                 .setSaveConsumer(newValue -> MacroConfig.sendDiscordStatus = newValue)
                                 .build());
-
-                qol.addEntry(new ButtonEntry(
-                                Component.literal("Reset Session Profit"),
-                                Component.literal("Clears drops from the current session ONLY."),
-                                button -> {
-                                        ProfitManager.reset();
-                                        Minecraft client = Minecraft.getInstance();
-                                        if (client.player != null) {
-                                                client.player.displayClientMessage(
-                                                                Component.literal(
-                                                                                "\u00A7aSession Profit has been reset!"),
-                                                                true);
-                                        }
-                                }));
-
-                qol.addEntry(new ButtonEntry(
-                                Component.literal("Reset Lifetime Profit"),
-                                Component.literal("PERMANENTLY clears all lifetime tracked drops."),
-                                button -> {
-                                        ProfitManager.resetLifetime();
-                                        Minecraft client = Minecraft.getInstance();
-                                        if (client.player != null) {
-                                                client.player.displayClientMessage(
-                                                                Component.literal(
-                                                                                "\u00A7cLifetime Profit has been reset!"),
-                                                                true);
-                                        }
-                                }));
 
                 qol.addEntry(builder.entryBuilder()
                                 .startStrField(Component.literal("Discord Webhook URL"), MacroConfig.discordWebhookUrl)
