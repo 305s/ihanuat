@@ -14,7 +14,7 @@ import java.util.Map;
  */
 public class ProfitHudRenderer {
 
-    static final int PANEL_W = 230;
+    static final int PANEL_W = 280;
     private static final int PADDING_H = 7;
     private static final int PADDING_V = 5;
     private static final int FONT_H = 9;
