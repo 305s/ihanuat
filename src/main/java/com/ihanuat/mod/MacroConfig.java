@@ -13,6 +13,10 @@ public class MacroConfig {
         NONE, WARDROBE, ROD
     }
 
+    public enum PetRarity {
+        COMMON, UNCOMMON, RARE, EPIC, LEGENDARY, MYTHIC
+    }
+
     public enum UnflyMode {
         SNEAK, DOUBLE_TAP_SPACE
     }
@@ -59,6 +63,10 @@ public class MacroConfig {
     public static final boolean DEFAULT_SEND_DISCORD_STATUS = false;
     public static final boolean DEFAULT_PERSIST_SESSION_TIMER = true;
     public static final boolean DEFAULT_COMPACT_PROFIT_CALCULATOR = false;
+
+    // Pet Tracker Defaults
+    public static final java.util.List<String> DEFAULT_PET_TRACKER_LIST = java.util.Arrays.asList(
+            "PET_ROSE_DRAGON:Rose Dragon:200:LEGENDARY");
 
     public static final int DEFAULT_HUD_X = 10;
     public static final int DEFAULT_HUD_Y = 10;
@@ -135,6 +143,61 @@ public class MacroConfig {
     public static boolean sendDiscordStatus = DEFAULT_SEND_DISCORD_STATUS;
     public static boolean persistSessionTimer = DEFAULT_PERSIST_SESSION_TIMER;
     public static boolean compactProfitCalculator = DEFAULT_COMPACT_PROFIT_CALCULATOR;
+
+    public static java.util.List<String> petTrackerList = new java.util.ArrayList<>(DEFAULT_PET_TRACKER_LIST);
+
+    public static class PetInfo {
+        public String tag;
+        public String name;
+        public int maxLevel;
+        public PetRarity rarity;
+
+        public PetInfo(String config) {
+            String[] parts = config.split(":");
+            if (parts.length >= 4) {
+                this.tag = parts[0].trim();
+                this.name = capitalizeWords(parts[1].trim());
+                try {
+                    this.maxLevel = Integer.parseInt(parts[2].trim());
+                } catch (NumberFormatException e) {
+                    this.maxLevel = 100;
+                }
+                try {
+                    this.rarity = PetRarity.valueOf(parts[3].trim().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    this.rarity = PetRarity.LEGENDARY;
+                }
+            } else {
+                this.tag = "UNKNOWN";
+                this.name = "Unknown Pet";
+                this.maxLevel = 100;
+                this.rarity = PetRarity.LEGENDARY;
+            }
+        }
+
+        private String capitalizeWords(String input) {
+            if (input == null || input.isEmpty())
+                return input;
+            String[] words = input.split("\\s+");
+            StringBuilder sb = new StringBuilder();
+            for (String word : words) {
+                if (word.length() > 0) {
+                    sb.append(Character.toUpperCase(word.charAt(0)));
+                    if (word.length() > 1) {
+                        sb.append(word.substring(1).toLowerCase());
+                    }
+                    sb.append(" ");
+                }
+            }
+            return sb.toString().trim();
+        }
+
+        @Override
+        public String toString() {
+            return tag + ":" + name + ":" + maxLevel + ":" + rarity;
+        }
+    }
+
     public static long lifetimeAccumulated = 0;
 
     // HUD
@@ -217,6 +280,9 @@ public class MacroConfig {
         data.rewarpEndPosSet = rewarpEndPosSet;
         data.persistSessionTimer = persistSessionTimer;
         data.compactProfitCalculator = compactProfitCalculator;
+
+        data.petTrackerList = new java.util.ArrayList<>(petTrackerList);
+
         data.hudX = hudX;
         data.hudY = hudY;
         data.hudScale = hudScale;
@@ -303,6 +369,11 @@ public class MacroConfig {
                 rewarpEndPosSet = data.rewarpEndPosSet;
                 persistSessionTimer = data.persistSessionTimer;
                 compactProfitCalculator = data.compactProfitCalculator;
+
+                if (data.petTrackerList != null) {
+                    petTrackerList = new java.util.ArrayList<>(data.petTrackerList);
+                }
+
                 hudX = data.hudX;
                 hudY = data.hudY;
                 hudScale = data.hudScale > 0 ? data.hudScale : DEFAULT_HUD_SCALE;
@@ -373,6 +444,9 @@ public class MacroConfig {
         boolean rewarpEndPosSet = false;
         boolean persistSessionTimer = DEFAULT_PERSIST_SESSION_TIMER;
         boolean compactProfitCalculator = DEFAULT_COMPACT_PROFIT_CALCULATOR;
+
+        java.util.List<String> petTrackerList = new java.util.ArrayList<>(DEFAULT_PET_TRACKER_LIST);
+
         int hudX = DEFAULT_HUD_X;
         int hudY = DEFAULT_HUD_Y;
         float hudScale = DEFAULT_HUD_SCALE;

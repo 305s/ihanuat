@@ -1,6 +1,9 @@
 package com.ihanuat.mod.modules;
 
+import com.ihanuat.mod.MacroConfig;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -8,10 +11,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ProfitManager {
-    private static final Map<String, Integer> sessionCounts = new LinkedHashMap<>();
-    private static final Map<String, Integer> lifetimeCounts = new LinkedHashMap<>();
-    private static final Map<String, Integer> prevInventoryCounts = new LinkedHashMap<>();
-    private static final Map<String, Long> bazaarPrices = new LinkedHashMap<>();
+    private static final Map<String, Long> sessionCounts = new LinkedHashMap<>();
+    private static final Map<String, Long> lifetimeCounts = new LinkedHashMap<>();
+    private static final Map<String, Long> prevInventoryCounts = new LinkedHashMap<>();
+    private static final Map<String, Double> bazaarPrices = new LinkedHashMap<>();
+    private static final Map<String, Long> petLvl1Prices = new java.util.HashMap<>();
+    private static final Map<String, Long> petMaxLvlPrices = new java.util.HashMap<>();
     private static long lastCultivatingValue = -1;
     private static String currentFarmedCrop = "Wheat";
     private static long lastBazaarFetchTime = 0;
@@ -48,7 +53,8 @@ public class ProfitManager {
 
     private static final Set<String> PETS_SET = Set.of("Epic Slug", "Legendary Slug", "Rat");
 
-    private static final Set<String> ARMOR_DROPS_SET = Set.of("Cropie", "Squash", "Fermento", "Helianthus");
+    private static final Set<String> MISC_DROPS_SET = Set.of("Cropie", "Squash", "Fermento", "Helianthus",
+            "Tool Exp Capsule", "Pet XP");
 
     private static final Set<String> BASE_CROPS = Set.of(
             "Wheat", "Potato", "Carrot", "Melon Slice", "Pumpkin",
@@ -56,51 +62,54 @@ public class ProfitManager {
             "Red Mushroom", "Brown Mushroom",
             "Sunflower", "Moonflower", "Wild Rose", "Seeds");
 
-    private static final Map<String, Long> TRACKED_ITEMS = Map.ofEntries(
+    private static final Map<String, Double> TRACKED_ITEMS = Map.ofEntries(
             // Crops
-            Map.entry("Wheat", 6L), Map.entry("Enchanted Wheat", 960L), Map.entry("Enchanted Hay Bale", 153600L),
-            Map.entry("Seeds", 3L), Map.entry("Enchanted Seeds", 480L), Map.entry("Box of Seeds", 76800L),
-            Map.entry("Potato", 3L), Map.entry("Enchanted Potato", 480L), Map.entry("Enchanted Baked Potato", 76800L),
-            Map.entry("Carrot", 3L), Map.entry("Enchanted Carrot", 480L), Map.entry("Enchanted Golden Carrot", 76800L),
-            Map.entry("Melon Slice", 2L), Map.entry("Melon Block", 18L), Map.entry("Enchanted Melon Slice", 320L),
-            Map.entry("Enchanted Melon", 51200L),
-            Map.entry("Pumpkin", 10L), Map.entry("Enchanted Pumpkin", 1600L), Map.entry("Polished Pumpkin", 256000L),
-            Map.entry("Sugar Cane", 4L), Map.entry("Enchanted Sugar", 640L), Map.entry("Enchanted Sugar Cane", 102400L),
-            Map.entry("Cactus", 4L), Map.entry("Enchanted Cactus Green", 640L), Map.entry("Enchanted Cactus", 102400L),
-            Map.entry("Mushroom", 10L), Map.entry("Red Mushroom", 10L), Map.entry("Brown Mushroom", 10L),
-            Map.entry("Enchanted Red Mushroom", 1600L), Map.entry("Enchanted Brown Mushroom", 1600L),
-            Map.entry("Enchanted Red Mushroom Block", 256000L), Map.entry("Enchanted Brown Mushroom Block", 256000L),
-            Map.entry("Cocoa Beans", 3L), Map.entry("Enchanted Cocoa Beans", 480L),
-            Map.entry("Enchanted Cookie", 76800L),
-            Map.entry("Nether Wart", 4L), Map.entry("Enchanted Nether Wart", 640L),
-            Map.entry("Mutant Nether Wart", 102400L),
-            Map.entry("Sunflower", 4L), Map.entry("Enchanted Sunflower", 640L),
-            Map.entry("Compacted Sunflower", 102400L),
-            Map.entry("Moonflower", 4L), Map.entry("Enchanted Moonflower", 640L),
-            Map.entry("Compacted Moonflower", 102400L),
-            Map.entry("Wild Rose", 4L), Map.entry("Enchanted Wild Rose", 640L),
-            Map.entry("Compacted Wild Rose", 102400L),
-
+            Map.entry("Wheat", 6.0), Map.entry("Enchanted Wheat", 960.0), Map.entry("Enchanted Hay Bale", 153600.0),
+            Map.entry("Seeds", 3.0), Map.entry("Enchanted Seeds", 480.0), Map.entry("Box of Seeds", 76800.0),
+            Map.entry("Potato", 3.0), Map.entry("Enchanted Potato", 480.0),
+            Map.entry("Enchanted Baked Potato", 76800.0),
+            Map.entry("Carrot", 3.0), Map.entry("Enchanted Carrot", 480.0),
+            Map.entry("Enchanted Golden Carrot", 76800.0),
+            Map.entry("Melon Slice", 2.0), Map.entry("Melon Block", 18.0), Map.entry("Enchanted Melon Slice", 320.0),
+            Map.entry("Enchanted Melon", 51200.0),
+            Map.entry("Pumpkin", 10.0), Map.entry("Enchanted Pumpkin", 1600.0), Map.entry("Polished Pumpkin", 256000.0),
+            Map.entry("Sugar Cane", 4.0), Map.entry("Enchanted Sugar", 640.0),
+            Map.entry("Enchanted Sugar Cane", 102400.0),
+            Map.entry("Cactus", 4.0), Map.entry("Enchanted Cactus Green", 640.0),
+            Map.entry("Enchanted Cactus", 102400.0),
+            Map.entry("Mushroom", 10.0), Map.entry("Red Mushroom", 10.0), Map.entry("Brown Mushroom", 10.0),
+            Map.entry("Enchanted Red Mushroom", 1600.0), Map.entry("Enchanted Brown Mushroom", 1600.0),
+            Map.entry("Enchanted Red Mushroom Block", 256000.0), Map.entry("Enchanted Brown Mushroom Block", 256000.0),
+            Map.entry("Cocoa Beans", 3.0), Map.entry("Enchanted Cocoa Beans", 480.0),
+            Map.entry("Enchanted Cookie", 76800.0),
+            Map.entry("Nether Wart", 4.0), Map.entry("Enchanted Nether Wart", 640.0),
+            Map.entry("Mutant Nether Wart", 102400.0),
+            Map.entry("Sunflower", 4.0), Map.entry("Enchanted Sunflower", 640.0),
+            Map.entry("Compacted Sunflower", 102400.0),
+            Map.entry("Moonflower", 4.0), Map.entry("Enchanted Moonflower", 640.0),
+            Map.entry("Compacted Moonflower", 102400.0),
+            Map.entry("Wild Rose", 4.0), Map.entry("Enchanted Wild Rose", 640.0),
+            Map.entry("Compacted Wild Rose", 102400.0),
             // Pest Items
-            Map.entry("Beady Eyes", 25000L), Map.entry("Chirping Stereo", 100000L), Map.entry("Sunder VI Book", 0L),
-            Map.entry("Clipped Wings", 25000L), Map.entry("Bookworm's Favorite Book", 10000L),
-            Map.entry("Atmospheric Filter", 100000L),
-            Map.entry("Wriggling Larva", 250000L), Map.entry("Pesterminator I Book", 0L),
-            Map.entry("Squeaky Toy", 10000L),
-            Map.entry("Squeaky Mousemat", 1000000L), Map.entry("Fire in a Bottle", 100000L),
-            Map.entry("Vermin Vaporizer Chip", 100000L),
-            Map.entry("Mantid Claw", 75000L),
-            Map.entry("Overclocker 3000", 250000L),
-            Map.entry("Vinyl", 50000L),
-            Map.entry("Dung", 0L), Map.entry("Honey Jar", 0L), Map.entry("Plant Matter", 0L),
-            Map.entry("Tasty Cheese", 0L), Map.entry("Compost", 0L), Map.entry("Jelly", 0L),
-
+            Map.entry("Beady Eyes", 25000.0), Map.entry("Chirping Stereo", 100000.0), Map.entry("Sunder VI Book", 0.0),
+            Map.entry("Clipped Wings", 25000.0), Map.entry("Bookworm's Favorite Book", 10000.0),
+            Map.entry("Atmospheric Filter", 100000.0),
+            Map.entry("Wriggling Larva", 250000.0), Map.entry("Pesterminator I Book", 0.0),
+            Map.entry("Squeaky Toy", 10000.0),
+            Map.entry("Squeaky Mousemat", 1000000.0), Map.entry("Fire in a Bottle", 100000.0),
+            Map.entry("Vermin Vaporizer Chip", 100000.0),
+            Map.entry("Mantid Claw", 75000.0),
+            Map.entry("Overclocker 3000", 250000.0),
+            Map.entry("Vinyl", 50000.0),
+            Map.entry("Dung", 0.0), Map.entry("Honey Jar", 0.0), Map.entry("Plant Matter", 0.0),
+            Map.entry("Tasty Cheese", 0.0), Map.entry("Compost", 0.0), Map.entry("Jelly", 0.0),
             // Pets
-            Map.entry("Epic Slug", 500000L), Map.entry("Legendary Slug", 5000000L), Map.entry("Rat", 5000L),
-
-            // Armor Drops
-            Map.entry("Cropie", 25000L), Map.entry("Squash", 75000L), Map.entry("Fermento", 250000L),
-            Map.entry("Helianthus", 0L));
+            Map.entry("Epic Slug", 500000.0), Map.entry("Legendary Slug", 5000000.0), Map.entry("Rat", 5000.0),
+            // Misc Drops
+            Map.entry("Cropie", 25000.0), Map.entry("Squash", 75000.0), Map.entry("Fermento", 250000.0),
+            Map.entry("Helianthus", 0.0), Map.entry("Tool Exp Capsule", 100000.0),
+            // Pet XP (price per XP point, will be fetched)
+            Map.entry("Pet XP", 0.0));
 
     private static final Map<String, String> BAZAAR_MAPPING = Map.of(
             "Sunder VI Book", "ENCHANTMENT_SUNDER_6",
@@ -117,16 +126,20 @@ public class ProfitManager {
     private static final Pattern PEST_PATTERN = Pattern.compile("received\\s+(\\d+)x\\s+(.+?)\\s+for\\s+killing",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern RARE_DROP_PATTERN = Pattern.compile(
-            "RARE DROP!\\s+(?:You dropped\\s+)?(?:(\\d+)x\\s+)?(.+?)(?=\\s*\\(|!|$)", Pattern.CASE_INSENSITIVE);
+            "(?:UNCOMMON|RARE|CRAZY RARE|PRAY TO RNGESUS) DROP!\\s+(?:You dropped\\s+)?(?:(\\d+)x\\s+)?(.+?)(?=\\s*\\(|!|$)",
+            Pattern.CASE_INSENSITIVE);
     private static final Pattern PET_DROP_PATTERN = Pattern.compile(
-            "PET DROP!\\s+(?:§[0-9a-fk-or])*§([56bf])(?:§[0-9a-fk-or])*([\\w\\s]+?)(?=\\s*\\(|!|$)",
+            "PET DROP!\\s+(?:§[0-9a-fk-or])*§([56bf])(?:§[0-9a-fk-or])*\\s*(?:(?:EPIC|LEGENDARY)\\s+(?:§[0-9a-fk-or])*)?([\\w\\s]+?)(?=\\s*\\(|!|$)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern RARE_CROP_PATTERN = Pattern.compile(
             "RARE CROP!\\s+(.+?)(?=\\s*\\(|!|$)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern OVERFLOW_DROP_PATTERN = Pattern.compile(
+            "OVERFLOW!\\s+.*?\\s+has\\s+just\\s+dropped\\s+a\\s+(.+?)!", Pattern.CASE_INSENSITIVE);
 
     private static final Pattern STRIP_COLOR_PATTERN = Pattern.compile("(?i)§[0-9A-FK-OR]");
 
-    public static void handleChatMessage(String text) {
+    public static void handleChatMessage(Component component) {
+        String text = toLegacyText(component);
         // PET DROP needs raw text to detect color-coded rarity
         Matcher petMatcher = PET_DROP_PATTERN.matcher(text);
         if (petMatcher.find()) {
@@ -150,6 +163,12 @@ public class ProfitManager {
         Matcher cropMatcher = RARE_CROP_PATTERN.matcher(text);
         if (cropMatcher.find()) {
             addDrop(cropMatcher.group(1).trim(), 1);
+            return;
+        }
+
+        Matcher overflowMatcher = OVERFLOW_DROP_PATTERN.matcher(text);
+        if (overflowMatcher.find()) {
+            addDrop(overflowMatcher.group(1).trim(), 1);
             return;
         }
 
@@ -178,21 +197,60 @@ public class ProfitManager {
         }
     }
 
-    private static void addDrop(String itemName, int count) {
+    private static String toLegacyText(Component component) {
+        StringBuilder sb = new StringBuilder();
+        component.visit((style, part) -> {
+            net.minecraft.network.chat.TextColor color = style.getColor();
+            if (color != null) {
+                int rgb = color.getValue();
+                String code = "f";
+                if (rgb == 16755200)
+                    code = "6"; // Gold
+                else if (rgb == 11141290)
+                    code = "5"; // Dark Purple
+                else if (rgb == 5636095)
+                    code = "b"; // Aqua
+                else if (rgb == 16733695)
+                    code = "d"; // Light Purple
+                else if (rgb == 5592405)
+                    code = "8"; // Dark Gray
+                else if (rgb == 11184810)
+                    code = "7"; // Gray
+                else if (rgb == 5592575)
+                    code = "9"; // Blue
+                else if (rgb == 5635925)
+                    code = "a"; // Green
+                else if (rgb == 16711680)
+                    code = "c"; // Red
+                else if (rgb == 16777045)
+                    code = "e"; // Yellow
+                sb.append("§").append(code);
+            }
+            if (style.isBold())
+                sb.append("§l");
+            if (style.isItalic())
+                sb.append("§o");
+            sb.append(part);
+            return java.util.Optional.empty();
+        }, Style.EMPTY);
+        return sb.toString();
+    }
+
+    private static void addDrop(String itemName, long count) {
         // Handle items with suffix counts like "Mutant Nether Wart X9"
-        String processedName = itemName.trim();
-        int multiplier = 1;
+        String processedName = STRIP_COLOR_PATTERN.matcher(itemName).replaceAll("").trim();
+        long multiplier = 1;
 
         Matcher suffixMatcher = Pattern.compile("\\s+[xX](\\d+)$").matcher(processedName);
         if (suffixMatcher.find()) {
             try {
-                multiplier = Integer.parseInt(suffixMatcher.group(1));
+                multiplier = Long.parseLong(suffixMatcher.group(1));
                 processedName = processedName.substring(0, suffixMatcher.start()).trim();
             } catch (Exception ignored) {
             }
         }
 
-        int finalCount = count * multiplier;
+        long finalCount = count * multiplier;
 
         // Group all Vinyl items together
         if (processedName.toLowerCase().endsWith("vinyl")) {
@@ -209,15 +267,61 @@ public class ProfitManager {
             }
         }
 
-        // If not in the "crop" list, we still track it but use a normalized version of
-        // the name
         if (matchedName == null) {
-            matchedName = normalizeName(processedName);
+            if (processedName.toLowerCase().startsWith("pet xp (")) {
+                matchedName = processedName; // Preserve casing for Pet XP
+            } else {
+                matchedName = normalizeName(processedName);
+            }
         }
 
-        sessionCounts.put(matchedName, sessionCounts.getOrDefault(matchedName, 0) + finalCount);
-        lifetimeCounts.put(matchedName, lifetimeCounts.getOrDefault(matchedName, 0) + finalCount);
+        // Only add to session counts if macro is running
+        if (com.ihanuat.mod.MacroStateManager.isMacroRunning()) {
+            sessionCounts.put(matchedName, sessionCounts.getOrDefault(matchedName, 0L) + finalCount);
+        }
+
+        lifetimeCounts.put(matchedName, lifetimeCounts.getOrDefault(matchedName, 0L) + finalCount);
         saveLifetime();
+    }
+
+    public static String getCategorizedName(String name) {
+        String color = "§7";
+        String tag = "OTHER";
+
+        if (CROPS_SET.contains(name)) {
+            color = "§a";
+            tag = "CROP";
+        } else if (PEST_ITEMS_SET.contains(name)) {
+            color = "§d";
+            tag = "PEST";
+        } else if (PETS_SET.contains(name)) {
+            color = "§6";
+            tag = "PET";
+        } else if (MISC_DROPS_SET.contains(name) || name.toLowerCase().startsWith("pet xp (")) {
+            color = "§b";
+            tag = "MISC";
+        }
+
+        String displayName = name.replace("Enchanted ", "Ench. ");
+        if (name.toLowerCase().startsWith("pet xp (")) {
+            displayName = name.substring(8, name.length() - 1) + " XP";
+        }
+        return color + "§l[" + tag + "] §f" + displayName;
+    }
+
+    public static String getCompactCategoryLabel(String category) {
+        switch (category) {
+            case "Crops":
+                return "§a§l[CROP]";
+            case "Pest Items":
+                return "§d§l[PEST]";
+            case "Pets":
+                return "§6§l[PET]";
+            case "Misc Drops":
+                return "§b§l[MISC]";
+            default:
+                return "§7§l[OTHER]";
+        }
     }
 
     private static String normalizeName(String name) {
@@ -240,12 +344,25 @@ public class ProfitManager {
         return b.toString();
     }
 
-    public static Map<String, Integer> getActiveDrops() {
+    public static Map<String, Long> getActiveDrops() {
         return getActiveDrops(false);
     }
 
-    public static Map<String, Integer> getActiveDrops(boolean lifetime) {
-        return new LinkedHashMap<>(lifetime ? lifetimeCounts : sessionCounts);
+    public static Map<String, Long> getActiveDrops(boolean lifetime) {
+        Map<String, Long> counts = lifetime ? lifetimeCounts : sessionCounts;
+
+        // Sort by total profit (count * price) descending
+        return counts.entrySet().stream()
+                .sorted((e1, e2) -> {
+                    double p1 = getItemPrice(e1.getKey()) * e1.getValue();
+                    double p2 = getItemPrice(e2.getKey()) * e2.getValue();
+                    return Double.compare(p2, p1);
+                })
+                .collect(java.util.stream.Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (v1, v2) -> v1,
+                        LinkedHashMap::new));
     }
 
     public static Map<String, Long> getCompactDrops() {
@@ -257,33 +374,42 @@ public class ProfitManager {
         compact.put("Crops", 0L);
         compact.put("Pest Items", 0L);
         compact.put("Pets", 0L);
-        compact.put("Armor Drops", 0L);
+        compact.put("Misc Drops", 0L);
         compact.put("Others", 0L);
 
-        Map<String, Integer> targetCounts = lifetime ? lifetimeCounts : sessionCounts;
-        for (Map.Entry<String, Integer> entry : targetCounts.entrySet()) {
+        Map<String, Long> targetCounts = lifetime ? lifetimeCounts : sessionCounts;
+        for (Map.Entry<String, Long> entry : targetCounts.entrySet()) {
             String name = entry.getKey();
-            int count = entry.getValue();
-            long price = getItemPrice(name);
-            long profit = price * count;
+            long count = entry.getValue();
+            double price = getItemPrice(name);
+            double profit = price * count;
 
             if (CROPS_SET.contains(name)) {
-                compact.put("Crops", compact.get("Crops") + profit);
+                compact.put("Crops", compact.get("Crops") + (long) profit);
             } else if (PEST_ITEMS_SET.contains(name)) {
-                compact.put("Pest Items", compact.get("Pest Items") + profit);
+                compact.put("Pest Items", compact.get("Pest Items") + (long) profit);
             } else if (PETS_SET.contains(name)) {
-                compact.put("Pets", compact.get("Pets") + profit);
-            } else if (ARMOR_DROPS_SET.contains(name)) {
-                compact.put("Armor Drops", compact.get("Armor Drops") + profit);
+                compact.put("Pets", compact.get("Pets") + (long) profit);
+            } else if (MISC_DROPS_SET.contains(name)) {
+                compact.put("Misc Drops", compact.get("Misc Drops") + (long) profit);
             } else {
-                compact.put("Others", compact.get("Others") + profit);
+                compact.put("Others", compact.get("Others") + (long) profit);
             }
         }
-        return compact;
+
+        // Sort compact map by value descending
+        return compact.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .collect(java.util.stream.Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (v1, v2) -> v1,
+                        LinkedHashMap::new));
     }
 
     public static void reset() {
         sessionCounts.clear();
+        PetXpTracker.reset();
     }
 
     public static void resetLifetime() {
@@ -296,13 +422,13 @@ public class ProfitManager {
     }
 
     public static long getTotalProfit(boolean lifetime) {
-        long total = 0;
-        Map<String, Integer> targetCounts = lifetime ? lifetimeCounts : sessionCounts;
-        for (Map.Entry<String, Integer> entry : targetCounts.entrySet()) {
-            long price = getItemPrice(entry.getKey());
+        double total = 0;
+        Map<String, Long> targetCounts = lifetime ? lifetimeCounts : sessionCounts;
+        for (Map.Entry<String, Long> entry : targetCounts.entrySet()) {
+            double price = getItemPrice(entry.getKey());
             total += price * entry.getValue();
         }
-        return total;
+        return (long) total;
     }
 
     private static void saveLifetime() {
@@ -317,9 +443,9 @@ public class ProfitManager {
         if (!LIFETIME_FILE.exists())
             return;
         try (java.io.FileReader reader = new java.io.FileReader(LIFETIME_FILE)) {
-            java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<String, Integer>>() {
+            java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<String, Long>>() {
             }.getType();
-            Map<String, Integer> data = GSON.fromJson(reader, type);
+            Map<String, Long> data = GSON.fromJson(reader, type);
             if (data != null) {
                 lifetimeCounts.clear();
                 lifetimeCounts.putAll(data);
@@ -329,10 +455,10 @@ public class ProfitManager {
         }
     }
 
-    public static long getItemPrice(String itemName) {
-        long price = TRACKED_ITEMS.getOrDefault(itemName, 0L);
-        if (price == 0L) {
-            price = bazaarPrices.getOrDefault(itemName, 0L);
+    public static double getItemPrice(String itemName) {
+        double price = TRACKED_ITEMS.getOrDefault(itemName, 0.0);
+        if (price == 0.0) {
+            price = bazaarPrices.getOrDefault(itemName, 0.0);
         }
         return price;
     }
@@ -340,6 +466,8 @@ public class ProfitManager {
     public static boolean isPredefinedTrackedItem(String itemName) {
         if (itemName == null)
             return false;
+        if (itemName.toLowerCase().startsWith("pet xp ("))
+            return true;
         for (String tracked : TRACKED_ITEMS.keySet()) {
             if (tracked.equalsIgnoreCase(itemName)) {
                 return true;
@@ -354,25 +482,25 @@ public class ProfitManager {
 
         // 1. Detect which crop increased in inventory
         String detectedCrop = null;
-        int maxIncrease = 0;
+        long maxIncrease = 0;
 
-        Map<String, Integer> currentCounts = new LinkedHashMap<>();
+        Map<String, Long> currentCounts = new LinkedHashMap<>();
         for (int i = 0; i < 36; i++) {
             net.minecraft.world.item.ItemStack stack = client.player.getInventory().getItem(i);
             if (stack == null || stack.isEmpty())
                 continue;
             String name = stack.getHoverName().getString().replaceAll("\u00A7[0-9a-fk-or]", "").trim();
             if (BASE_CROPS.contains(name)) {
-                currentCounts.put(name, currentCounts.getOrDefault(name, 0) + stack.getCount());
+                currentCounts.put(name, currentCounts.getOrDefault(name, 0L) + stack.getCount());
             }
         }
 
-        for (Map.Entry<String, Integer> entry : currentCounts.entrySet()) {
+        for (Map.Entry<String, Long> entry : currentCounts.entrySet()) {
             String name = entry.getKey();
-            int count = entry.getValue();
-            int prev = prevInventoryCounts.getOrDefault(name, 0);
+            long count = entry.getValue();
+            long prev = prevInventoryCounts.getOrDefault(name, 0L);
             if (count > prev) {
-                int diff = count - prev;
+                long diff = count - prev;
                 if (diff > maxIncrease) {
                     maxIncrease = diff;
                     detectedCrop = name;
@@ -407,22 +535,34 @@ public class ProfitManager {
                         if (currentFarmedCrop.equalsIgnoreCase("Wheat")
                                 || currentFarmedCrop.equalsIgnoreCase("Seeds")) {
                             // Ratio 1 Wheat : 1.5 Seeds (Total 2.5)
-                            int wheatDelta = (int) Math.round(delta / 2.5);
-                            int seedsDelta = (int) delta - wheatDelta;
+                            long wheatDelta = Math.round(delta / 2.5);
+                            long seedsDelta = delta - wheatDelta;
                             if (wheatDelta > 0)
                                 addDrop("Wheat", wheatDelta);
                             if (seedsDelta > 0)
                                 addDrop("Seeds", seedsDelta);
                         } else {
-                            addDrop(currentFarmedCrop, (int) delta);
+                            addDrop(currentFarmedCrop, delta);
                         }
                     }
                 }
                 lastCultivatingValue = newValue;
-                return; // Found value, done for this tick
+
+                // Track Rose Dragon XP from tab list (runs every tick regardless)
+                PetXpTracker.update(client);
+
+                // Refresh bazaar prices every hour
+                long now = System.currentTimeMillis();
+                if (now - lastBazaarFetchTime > 3600000L) {
+                    fetchBazaarPrices();
+                }
+                return; // Found cultivating value, done for this tick
             }
         }
         lastCultivatingValue = -1;
+
+        // Track Pet XP from tab list
+        PetXpTracker.update(client);
 
         // Refresh bazaar prices every hour
         long now = System.currentTimeMillis();
@@ -431,36 +571,194 @@ public class ProfitManager {
         }
     }
 
+    /**
+     * Sends the current Rose Dragon BIN price data to the player's chat.
+     * Call this when the macro starts so you can verify the fetched prices.
+     */
+    public static void printPetXpPriceDebug(net.minecraft.client.Minecraft client) {
+        if (client.player == null)
+            return;
+
+        client.player.displayClientMessage(
+                net.minecraft.network.chat.Component.literal("§b[Pet XP Tracker] §fCurrently tracking:"), false);
+
+        for (String petConfig : MacroConfig.petTrackerList) {
+            MacroConfig.PetInfo info = new MacroConfig.PetInfo(petConfig);
+            long lvl1 = petLvl1Prices.getOrDefault(info.name, 0L);
+            long lvlMax = petMaxLvlPrices.getOrDefault(info.name, 0L);
+            double pricePerXp = bazaarPrices.getOrDefault("Pet XP (" + info.name + ")", 0.0);
+
+            String lvl1Str = lvl1 > 0 ? String.format("%,d", lvl1) : "not found";
+            String lvlMaxStr = lvlMax > 0 ? String.format("%,d", lvlMax) : "not found";
+            String marginStr = pricePerXp > 0 ? String.format("%.3f", pricePerXp) : "not fetched";
+
+            client.player.displayClientMessage(
+                    net.minecraft.network.chat.Component.literal(
+                            " §8> §e" + info.name + "§f: §7L1: §6" + lvl1Str + " §7Max: §6" + lvlMaxStr + " §7-> §a"
+                                    + marginStr + " §7C/XP"),
+                    false);
+        }
+    }
+
+    /**
+     * Called by {@link PetXpTracker} to record XP gained this tick.
+     * Uses the same session/lifetime accounting as other drops.
+     */
+    public static void addPetXp(String petName, long xpAmount) {
+        if (xpAmount <= 0)
+            return;
+        addDrop("Pet XP (" + petName + ")", xpAmount);
+    }
+
+    private static int startupPetPriceRetryCount = 3;
+
+    public static void startStartupPriceFetch() {
+        startupPetPriceRetryCount = 0;
+        fetchBazaarPrices();
+    }
+
     private static synchronized void fetchBazaarPrices() {
         lastBazaarFetchTime = System.currentTimeMillis();
         new Thread(() -> {
             java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
-            for (Map.Entry<String, String> entry : BAZAAR_MAPPING.entrySet()) {
-                String itemName = entry.getKey();
-                String itemTag = entry.getValue();
+            performFetchInternal(client);
 
-                try {
-                    java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
-                            .uri(java.net.URI.create("https://sky.coflnet.com/api/item/price/" + itemTag))
-                            .GET()
-                            .build();
-
-                    java.net.http.HttpResponse<String> response = client.send(request,
-                            java.net.http.HttpResponse.BodyHandlers.ofString());
-                    if (response.statusCode() == 200) {
-                        BazaarApiResponse data = GSON.fromJson(response.body(), BazaarApiResponse.class);
-                        if (data != null && data.max > 0) {
-                            bazaarPrices.put(itemName, (long) data.max);
-                        }
+            // Startup retry logic: if any pet price is missing, retry up to 3 times every 5
+            // seconds
+            if (startupPetPriceRetryCount < 3) {
+                boolean missingAny = false;
+                for (String petConfig : MacroConfig.petTrackerList) {
+                    MacroConfig.PetInfo info = new MacroConfig.PetInfo(petConfig);
+                    if (!bazaarPrices.containsKey("Pet XP (" + info.name + ")")) {
+                        missingAny = true;
+                        break;
                     }
-                } catch (Exception e) {
-                    System.err.println("Failed to fetch bazaar price for " + itemName + ": " + e.getMessage());
+                }
+
+                if (missingAny) {
+                    startupPetPriceRetryCount++;
+                    System.out.println("[Ihanuat] Pet XP prices not fully fetched, retry " + startupPetPriceRetryCount
+                            + "/3 in 5s...");
+                    try {
+                        Thread.sleep(5000L);
+                    } catch (InterruptedException ignored) {
+                    }
+                    fetchBazaarPrices();
+                } else {
+                    startupPetPriceRetryCount = 3; // Success, don't retry again
                 }
             }
         }).start();
     }
 
+    private static void performFetchInternal(java.net.http.HttpClient client) {
+        for (Map.Entry<String, String> entry : BAZAAR_MAPPING.entrySet()) {
+            String itemName = entry.getKey();
+            String itemTag = entry.getValue();
+
+            try {
+                java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create("https://sky.coflnet.com/api/item/price/" + itemTag))
+                        .GET()
+                        .build();
+
+                java.net.http.HttpResponse<String> response = client.send(request,
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == 200) {
+                    BazaarApiResponse data = GSON.fromJson(response.body(), BazaarApiResponse.class);
+                    if (data != null && data.max > 0) {
+                        bazaarPrices.put(itemName, (double) data.max);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to fetch bazaar price for " + itemName + ": " + e.getMessage());
+            }
+        }
+        // Also fetch Pet XP price
+        fetchPetXpPrice(client);
+    }
+
+    /**
+     * Fetches the lowest BIN for level-1 and level-max for all configured pets,
+     * deriving the coin value of a single XP point for each.
+     */
+    private static void fetchPetXpPrice(java.net.http.HttpClient http) {
+        for (String petConfig : MacroConfig.petTrackerList) {
+            MacroConfig.PetInfo info = new MacroConfig.PetInfo(petConfig);
+            long[] table = PetXpTracker.getXpTable(info.rarity, info.maxLevel);
+            final long TOTAL_XP = table[info.maxLevel];
+
+            try {
+                // ── Level 1 lowest BIN ───────────────────────────────────────────
+                long lvl1Price = 0;
+                java.net.http.HttpRequest req1 = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create("https://sky.coflnet.com/api/item/price/" + info.tag + "/bin"))
+                        .GET().build();
+                java.net.http.HttpResponse<String> resp1 = http.send(req1,
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp1.statusCode() == 200) {
+                    BinResponse bin = GSON.fromJson(resp1.body(), BinResponse.class);
+                    if (bin != null && bin.lowest > 0) {
+                        lvl1Price = (long) bin.lowest;
+                    }
+                }
+
+                // ── Max Level lowest BIN ───────────────────────────────────────────────
+                long lvlMaxPrice = 0;
+                String filter = java.net.URLEncoder.encode("[Lvl " + info.maxLevel + "]", "UTF-8");
+                java.net.http.HttpRequest req2 = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(
+                                "https://sky.coflnet.com/api/auctions/tag/" + info.tag + "/active/bin"
+                                        + "?ItemNameContains=" + filter))
+                        .GET().build();
+                java.net.http.HttpResponse<String> resp2 = http.send(req2,
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp2.statusCode() == 200) {
+                    java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<java.util.List<ActiveBinEntry>>() {
+                    }.getType();
+                    java.util.List<ActiveBinEntry> listings = GSON.fromJson(resp2.body(), listType);
+                    if (listings != null) {
+                        for (ActiveBinEntry listing : listings) {
+                            if (listing.itemName == null || !listing.itemName.contains("[Lvl " + info.maxLevel + "]"))
+                                continue;
+                            if (listing.startingBid > 0) {
+                                if (lvlMaxPrice == 0 || listing.startingBid < lvlMaxPrice) {
+                                    lvlMaxPrice = listing.startingBid;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (lvl1Price > 0)
+                    petLvl1Prices.put(info.name, lvl1Price);
+                if (lvlMaxPrice > 0)
+                    petMaxLvlPrices.put(info.name, lvlMaxPrice);
+
+                if (lvlMaxPrice > lvl1Price && lvl1Price > 0) {
+                    double pricePerXp = (double) (lvlMaxPrice - lvl1Price) / TOTAL_XP;
+                    if (pricePerXp > 0) {
+                        bazaarPrices.put("Pet XP (" + info.name + ")", pricePerXp);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[Ihanuat] Failed to fetch Pet XP price for " + info.name + ": " + e.getMessage());
+            }
+        }
+    }
+
     private static class BazaarApiResponse {
         double max;
+    }
+
+    /** Response from /api/item/price/{tag}/bin */
+    private static class BinResponse {
+        double lowest;
+    }
+
+    /** One entry from /api/auctions/tag/{tag}/active/bin */
+    private static class ActiveBinEntry {
+        long startingBid;
+        String itemName; // e.g. "[Lvl 200] Rose Dragon"
     }
 }

@@ -206,7 +206,7 @@ public class IhanuatClient implements ClientModInitializer {
                     isPickingUpStash = false;
                 }
 
-                ProfitManager.handleChatMessage(text);
+                ProfitManager.handleChatMessage(message);
             } finally {
                 isHandlingMessage = false;
             }
@@ -231,6 +231,8 @@ public class IhanuatClient implements ClientModInitializer {
                     BookCombineManager.reset();
                     RecoveryManager.reset();
                     MacroStateManager.setCurrentState(MacroState.State.FARMING);
+                    ProfitManager.startStartupPriceFetch();
+                    ProfitManager.printPetXpPriceDebug(client);
                     DynamicRestManager.scheduleNextRest();
                     new Thread(() -> {
                         try {

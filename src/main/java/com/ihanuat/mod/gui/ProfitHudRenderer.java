@@ -14,7 +14,7 @@ import java.util.Map;
  */
 public class ProfitHudRenderer {
 
-    static final int PANEL_W = 230;
+    static final int PANEL_W = 280;
     private static final int PADDING_H = 7;
     private static final int PADDING_V = 5;
     private static final int FONT_H = 9;
@@ -188,21 +188,29 @@ public class ProfitHudRenderer {
             Map<String, Long> compactDrops = ProfitManager.getCompactDrops(lifetime);
             for (Map.Entry<String, Long> entry : compactDrops.entrySet()) {
                 if (entry.getValue() > 0) {
-                    drawRow(g, client, rowY, entry.getKey(), formatProfit(entry.getValue()), 0xFFFFFF55);
+                    String label = ProfitManager.getCompactCategoryLabel(entry.getKey());
+                    drawRow(g, client, rowY, label, formatProfit(entry.getValue()), 0xFFFFFF55);
                     rowY += ROW_HEIGHT;
                 }
             }
         } else {
-            Map<String, Integer> drops = ProfitManager.getActiveDrops(lifetime);
-            for (Map.Entry<String, Integer> entry : drops.entrySet()) {
+            Map<String, Long> drops = ProfitManager.getActiveDrops(lifetime);
+            for (Map.Entry<String, Long> entry : drops.entrySet()) {
                 String itemName = entry.getKey();
-                int count = entry.getValue();
-                long price = ProfitManager.getItemPrice(itemName);
-                long lineProfit = price * count;
+                long count = entry.getValue();
+                double price = ProfitManager.getItemPrice(itemName);
+                long lineProfit = (long) (price * count);
 
-                String labelText = itemName + " (x" + String.format("%,d", count) + ")";
+                String categorizedName = ProfitManager.getCategorizedName(itemName);
+                // Pet XP: show XP total rather than an item count
+                String countDisplay = itemName.startsWith("Pet XP (")
+                        ? String.format("%,d XP", count)
+                        : "x" + String.format("%,d", count);
+                String labelText = categorizedName + " §r(" + countDisplay + ")";
                 String valueText = formatProfit(lineProfit);
 
+                // For the row value specifically, we can use a slightly highlighted yellow if
+                // it's a known item
                 int color = ProfitManager.isPredefinedTrackedItem(itemName) ? 0xFFFFFF55 : VALUE_COLOR;
                 drawRow(g, client, rowY, labelText, valueText, color);
                 rowY += ROW_HEIGHT;
