@@ -11,6 +11,17 @@ public class MacroStateManager {
     private static volatile long lastSessionStartTime = 0;
     private static long lastPeriodicSaveTime = 0;
 
+    public static void resetSession() {
+        if (isMacroRunning()) {
+            lastSessionStartTime = System.currentTimeMillis();
+        } else {
+            lastSessionStartTime = 0;
+        }
+        sessionAccumulated = 0;
+        com.ihanuat.mod.modules.ProfitManager.reset();
+        com.ihanuat.mod.modules.DynamicRestManager.reset();
+    }
+
     public static void syncFromConfig() {
         lifetimeAccumulated = MacroConfig.lifetimeAccumulated;
     }

@@ -215,15 +215,15 @@ public class ConfigScreenFactory {
                                 .build());
 
                 profitTracker.addEntry(new ButtonEntry(
-                                Component.literal("Reset Session Profit"),
-                                Component.literal("Clears drops from the current session ONLY."),
+                                Component.literal("Reset Session"),
+                                Component.literal("Clears drops AND the timer for the current session."),
                                 button -> {
-                                        ProfitManager.reset();
+                                        com.ihanuat.mod.MacroStateManager.resetSession();
                                         Minecraft client = Minecraft.getInstance();
                                         if (client.player != null) {
                                                 client.player.displayClientMessage(
                                                                 Component.literal(
-                                                                                "\u00A7aSession Profit has been reset!"),
+                                                                                "\u00A7aSession has been reset!"),
                                                                 true);
                                         }
                                 }));
