@@ -194,15 +194,19 @@ public class ProfitHudRenderer {
                 }
             }
         } else {
-            Map<String, Integer> drops = ProfitManager.getActiveDrops(lifetime);
-            for (Map.Entry<String, Integer> entry : drops.entrySet()) {
+            Map<String, Long> drops = ProfitManager.getActiveDrops(lifetime);
+            for (Map.Entry<String, Long> entry : drops.entrySet()) {
                 String itemName = entry.getKey();
-                int count = entry.getValue();
-                long price = ProfitManager.getItemPrice(itemName);
-                long lineProfit = price * count;
+                long count = entry.getValue();
+                double price = ProfitManager.getItemPrice(itemName);
+                long lineProfit = (long) (price * count);
 
                 String categorizedName = ProfitManager.getCategorizedName(itemName);
-                String labelText = categorizedName + " §r(x" + String.format("%,d", count) + ")";
+                // Rose Dragon XP: show XP total rather than an item count
+                String countDisplay = itemName.equals("Rose Dragon XP")
+                        ? String.format("%,d XP", count)
+                        : "x" + String.format("%,d", count);
+                String labelText = categorizedName + " §r(" + countDisplay + ")";
                 String valueText = formatProfit(lineProfit);
 
                 // For the row value specifically, we can use a slightly highlighted yellow if

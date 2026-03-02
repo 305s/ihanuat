@@ -231,6 +231,7 @@ public class IhanuatClient implements ClientModInitializer {
                     BookCombineManager.reset();
                     RecoveryManager.reset();
                     MacroStateManager.setCurrentState(MacroState.State.FARMING);
+                    ProfitManager.printRoseDragonPriceDebug(client);
                     DynamicRestManager.scheduleNextRest();
                     new Thread(() -> {
                         try {

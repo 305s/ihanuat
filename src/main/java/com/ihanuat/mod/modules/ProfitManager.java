@@ -8,13 +8,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ProfitManager {
-    private static final Map<String, Integer> sessionCounts = new LinkedHashMap<>();
-    private static final Map<String, Integer> lifetimeCounts = new LinkedHashMap<>();
-    private static final Map<String, Integer> prevInventoryCounts = new LinkedHashMap<>();
-    private static final Map<String, Long> bazaarPrices = new LinkedHashMap<>();
+    private static final Map<String, Long> sessionCounts = new LinkedHashMap<>();
+    private static final Map<String, Long> lifetimeCounts = new LinkedHashMap<>();
+    private static final Map<String, Long> prevInventoryCounts = new LinkedHashMap<>();
+    private static final Map<String, Double> bazaarPrices = new LinkedHashMap<>();
     private static long lastCultivatingValue = -1;
     private static String currentFarmedCrop = "Wheat";
     private static long lastBazaarFetchTime = 0;
+
+    // Last fetched Rose Dragon BIN prices (for debug output)
+    private static long lastRdLvl1Price = 0;
+    private static long lastRdLvl200Price = 0;
 
     private static final java.io.File LIFETIME_FILE = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir()
             .resolve("pest_macro_profit_lifetime.json").toFile();
@@ -49,7 +53,7 @@ public class ProfitManager {
     private static final Set<String> PETS_SET = Set.of("Epic Slug", "Legendary Slug", "Rat");
 
     private static final Set<String> MISC_DROPS_SET = Set.of("Cropie", "Squash", "Fermento", "Helianthus",
-            "Tool Exp Capsule");
+            "Tool Exp Capsule", "Rose Dragon XP");
 
     private static final Set<String> BASE_CROPS = Set.of(
             "Wheat", "Potato", "Carrot", "Melon Slice", "Pumpkin",
@@ -57,51 +61,54 @@ public class ProfitManager {
             "Red Mushroom", "Brown Mushroom",
             "Sunflower", "Moonflower", "Wild Rose", "Seeds");
 
-    private static final Map<String, Long> TRACKED_ITEMS = Map.ofEntries(
+    private static final Map<String, Double> TRACKED_ITEMS = Map.ofEntries(
             // Crops
-            Map.entry("Wheat", 6L), Map.entry("Enchanted Wheat", 960L), Map.entry("Enchanted Hay Bale", 153600L),
-            Map.entry("Seeds", 3L), Map.entry("Enchanted Seeds", 480L), Map.entry("Box of Seeds", 76800L),
-            Map.entry("Potato", 3L), Map.entry("Enchanted Potato", 480L), Map.entry("Enchanted Baked Potato", 76800L),
-            Map.entry("Carrot", 3L), Map.entry("Enchanted Carrot", 480L), Map.entry("Enchanted Golden Carrot", 76800L),
-            Map.entry("Melon Slice", 2L), Map.entry("Melon Block", 18L), Map.entry("Enchanted Melon Slice", 320L),
-            Map.entry("Enchanted Melon", 51200L),
-            Map.entry("Pumpkin", 10L), Map.entry("Enchanted Pumpkin", 1600L), Map.entry("Polished Pumpkin", 256000L),
-            Map.entry("Sugar Cane", 4L), Map.entry("Enchanted Sugar", 640L), Map.entry("Enchanted Sugar Cane", 102400L),
-            Map.entry("Cactus", 4L), Map.entry("Enchanted Cactus Green", 640L), Map.entry("Enchanted Cactus", 102400L),
-            Map.entry("Mushroom", 10L), Map.entry("Red Mushroom", 10L), Map.entry("Brown Mushroom", 10L),
-            Map.entry("Enchanted Red Mushroom", 1600L), Map.entry("Enchanted Brown Mushroom", 1600L),
-            Map.entry("Enchanted Red Mushroom Block", 256000L), Map.entry("Enchanted Brown Mushroom Block", 256000L),
-            Map.entry("Cocoa Beans", 3L), Map.entry("Enchanted Cocoa Beans", 480L),
-            Map.entry("Enchanted Cookie", 76800L),
-            Map.entry("Nether Wart", 4L), Map.entry("Enchanted Nether Wart", 640L),
-            Map.entry("Mutant Nether Wart", 102400L),
-            Map.entry("Sunflower", 4L), Map.entry("Enchanted Sunflower", 640L),
-            Map.entry("Compacted Sunflower", 102400L),
-            Map.entry("Moonflower", 4L), Map.entry("Enchanted Moonflower", 640L),
-            Map.entry("Compacted Moonflower", 102400L),
-            Map.entry("Wild Rose", 4L), Map.entry("Enchanted Wild Rose", 640L),
-            Map.entry("Compacted Wild Rose", 102400L),
-
+            Map.entry("Wheat", 6.0), Map.entry("Enchanted Wheat", 960.0), Map.entry("Enchanted Hay Bale", 153600.0),
+            Map.entry("Seeds", 3.0), Map.entry("Enchanted Seeds", 480.0), Map.entry("Box of Seeds", 76800.0),
+            Map.entry("Potato", 3.0), Map.entry("Enchanted Potato", 480.0),
+            Map.entry("Enchanted Baked Potato", 76800.0),
+            Map.entry("Carrot", 3.0), Map.entry("Enchanted Carrot", 480.0),
+            Map.entry("Enchanted Golden Carrot", 76800.0),
+            Map.entry("Melon Slice", 2.0), Map.entry("Melon Block", 18.0), Map.entry("Enchanted Melon Slice", 320.0),
+            Map.entry("Enchanted Melon", 51200.0),
+            Map.entry("Pumpkin", 10.0), Map.entry("Enchanted Pumpkin", 1600.0), Map.entry("Polished Pumpkin", 256000.0),
+            Map.entry("Sugar Cane", 4.0), Map.entry("Enchanted Sugar", 640.0),
+            Map.entry("Enchanted Sugar Cane", 102400.0),
+            Map.entry("Cactus", 4.0), Map.entry("Enchanted Cactus Green", 640.0),
+            Map.entry("Enchanted Cactus", 102400.0),
+            Map.entry("Mushroom", 10.0), Map.entry("Red Mushroom", 10.0), Map.entry("Brown Mushroom", 10.0),
+            Map.entry("Enchanted Red Mushroom", 1600.0), Map.entry("Enchanted Brown Mushroom", 1600.0),
+            Map.entry("Enchanted Red Mushroom Block", 256000.0), Map.entry("Enchanted Brown Mushroom Block", 256000.0),
+            Map.entry("Cocoa Beans", 3.0), Map.entry("Enchanted Cocoa Beans", 480.0),
+            Map.entry("Enchanted Cookie", 76800.0),
+            Map.entry("Nether Wart", 4.0), Map.entry("Enchanted Nether Wart", 640.0),
+            Map.entry("Mutant Nether Wart", 102400.0),
+            Map.entry("Sunflower", 4.0), Map.entry("Enchanted Sunflower", 640.0),
+            Map.entry("Compacted Sunflower", 102400.0),
+            Map.entry("Moonflower", 4.0), Map.entry("Enchanted Moonflower", 640.0),
+            Map.entry("Compacted Moonflower", 102400.0),
+            Map.entry("Wild Rose", 4.0), Map.entry("Enchanted Wild Rose", 640.0),
+            Map.entry("Compacted Wild Rose", 102400.0),
             // Pest Items
-            Map.entry("Beady Eyes", 25000L), Map.entry("Chirping Stereo", 100000L), Map.entry("Sunder VI Book", 0L),
-            Map.entry("Clipped Wings", 25000L), Map.entry("Bookworm's Favorite Book", 10000L),
-            Map.entry("Atmospheric Filter", 100000L),
-            Map.entry("Wriggling Larva", 250000L), Map.entry("Pesterminator I Book", 0L),
-            Map.entry("Squeaky Toy", 10000L),
-            Map.entry("Squeaky Mousemat", 1000000L), Map.entry("Fire in a Bottle", 100000L),
-            Map.entry("Vermin Vaporizer Chip", 100000L),
-            Map.entry("Mantid Claw", 75000L),
-            Map.entry("Overclocker 3000", 250000L),
-            Map.entry("Vinyl", 50000L),
-            Map.entry("Dung", 0L), Map.entry("Honey Jar", 0L), Map.entry("Plant Matter", 0L),
-            Map.entry("Tasty Cheese", 0L), Map.entry("Compost", 0L), Map.entry("Jelly", 0L),
-
+            Map.entry("Beady Eyes", 25000.0), Map.entry("Chirping Stereo", 100000.0), Map.entry("Sunder VI Book", 0.0),
+            Map.entry("Clipped Wings", 25000.0), Map.entry("Bookworm's Favorite Book", 10000.0),
+            Map.entry("Atmospheric Filter", 100000.0),
+            Map.entry("Wriggling Larva", 250000.0), Map.entry("Pesterminator I Book", 0.0),
+            Map.entry("Squeaky Toy", 10000.0),
+            Map.entry("Squeaky Mousemat", 1000000.0), Map.entry("Fire in a Bottle", 100000.0),
+            Map.entry("Vermin Vaporizer Chip", 100000.0),
+            Map.entry("Mantid Claw", 75000.0),
+            Map.entry("Overclocker 3000", 250000.0),
+            Map.entry("Vinyl", 50000.0),
+            Map.entry("Dung", 0.0), Map.entry("Honey Jar", 0.0), Map.entry("Plant Matter", 0.0),
+            Map.entry("Tasty Cheese", 0.0), Map.entry("Compost", 0.0), Map.entry("Jelly", 0.0),
             // Pets
-            Map.entry("Epic Slug", 500000L), Map.entry("Legendary Slug", 5000000L), Map.entry("Rat", 5000L),
-
+            Map.entry("Epic Slug", 500000.0), Map.entry("Legendary Slug", 5000000.0), Map.entry("Rat", 5000.0),
             // Misc Drops
-            Map.entry("Cropie", 25000L), Map.entry("Squash", 75000L), Map.entry("Fermento", 250000L),
-            Map.entry("Helianthus", 0L), Map.entry("Tool Exp Capsule", 100000L));
+            Map.entry("Cropie", 25000.0), Map.entry("Squash", 75000.0), Map.entry("Fermento", 250000.0),
+            Map.entry("Helianthus", 0.0), Map.entry("Tool Exp Capsule", 100000.0),
+            // Rose Dragon XP (price per XP point, will be fetched)
+            Map.entry("Rose Dragon XP", 0.0));
 
     private static final Map<String, String> BAZAAR_MAPPING = Map.of(
             "Sunder VI Book", "ENCHANTMENT_SUNDER_6",
@@ -188,21 +195,21 @@ public class ProfitManager {
         }
     }
 
-    private static void addDrop(String itemName, int count) {
+    private static void addDrop(String itemName, long count) {
         // Handle items with suffix counts like "Mutant Nether Wart X9"
         String processedName = itemName.trim();
-        int multiplier = 1;
+        long multiplier = 1;
 
         Matcher suffixMatcher = Pattern.compile("\\s+[xX](\\d+)$").matcher(processedName);
         if (suffixMatcher.find()) {
             try {
-                multiplier = Integer.parseInt(suffixMatcher.group(1));
+                multiplier = Long.parseLong(suffixMatcher.group(1));
                 processedName = processedName.substring(0, suffixMatcher.start()).trim();
             } catch (Exception ignored) {
             }
         }
 
-        int finalCount = count * multiplier;
+        long finalCount = count * multiplier;
 
         // Group all Vinyl items together
         if (processedName.toLowerCase().endsWith("vinyl")) {
@@ -225,10 +232,10 @@ public class ProfitManager {
 
         // Only add to session counts if macro is running
         if (com.ihanuat.mod.MacroStateManager.isMacroRunning()) {
-            sessionCounts.put(matchedName, sessionCounts.getOrDefault(matchedName, 0) + finalCount);
+            sessionCounts.put(matchedName, sessionCounts.getOrDefault(matchedName, 0L) + finalCount);
         }
 
-        lifetimeCounts.put(matchedName, lifetimeCounts.getOrDefault(matchedName, 0) + finalCount);
+        lifetimeCounts.put(matchedName, lifetimeCounts.getOrDefault(matchedName, 0L) + finalCount);
         saveLifetime();
     }
 
@@ -289,19 +296,19 @@ public class ProfitManager {
         return b.toString();
     }
 
-    public static Map<String, Integer> getActiveDrops() {
+    public static Map<String, Long> getActiveDrops() {
         return getActiveDrops(false);
     }
 
-    public static Map<String, Integer> getActiveDrops(boolean lifetime) {
-        Map<String, Integer> counts = lifetime ? lifetimeCounts : sessionCounts;
+    public static Map<String, Long> getActiveDrops(boolean lifetime) {
+        Map<String, Long> counts = lifetime ? lifetimeCounts : sessionCounts;
 
         // Sort by total profit (count * price) descending
         return counts.entrySet().stream()
                 .sorted((e1, e2) -> {
-                    long p1 = getItemPrice(e1.getKey()) * e1.getValue();
-                    long p2 = getItemPrice(e2.getKey()) * e2.getValue();
-                    return Long.compare(p2, p1);
+                    double p1 = getItemPrice(e1.getKey()) * e1.getValue();
+                    double p2 = getItemPrice(e2.getKey()) * e2.getValue();
+                    return Double.compare(p2, p1);
                 })
                 .collect(java.util.stream.Collectors.toMap(
                         Map.Entry::getKey,
@@ -322,23 +329,23 @@ public class ProfitManager {
         compact.put("Misc Drops", 0L);
         compact.put("Others", 0L);
 
-        Map<String, Integer> targetCounts = lifetime ? lifetimeCounts : sessionCounts;
-        for (Map.Entry<String, Integer> entry : targetCounts.entrySet()) {
+        Map<String, Long> targetCounts = lifetime ? lifetimeCounts : sessionCounts;
+        for (Map.Entry<String, Long> entry : targetCounts.entrySet()) {
             String name = entry.getKey();
-            int count = entry.getValue();
-            long price = getItemPrice(name);
-            long profit = price * count;
+            long count = entry.getValue();
+            double price = getItemPrice(name);
+            double profit = price * count;
 
             if (CROPS_SET.contains(name)) {
-                compact.put("Crops", compact.get("Crops") + profit);
+                compact.put("Crops", compact.get("Crops") + (long) profit);
             } else if (PEST_ITEMS_SET.contains(name)) {
-                compact.put("Pest Items", compact.get("Pest Items") + profit);
+                compact.put("Pest Items", compact.get("Pest Items") + (long) profit);
             } else if (PETS_SET.contains(name)) {
-                compact.put("Pets", compact.get("Pets") + profit);
+                compact.put("Pets", compact.get("Pets") + (long) profit);
             } else if (MISC_DROPS_SET.contains(name)) {
-                compact.put("Misc Drops", compact.get("Misc Drops") + profit);
+                compact.put("Misc Drops", compact.get("Misc Drops") + (long) profit);
             } else {
-                compact.put("Others", compact.get("Others") + profit);
+                compact.put("Others", compact.get("Others") + (long) profit);
             }
         }
 
@@ -354,6 +361,7 @@ public class ProfitManager {
 
     public static void reset() {
         sessionCounts.clear();
+        RoseDragonXpTracker.reset();
     }
 
     public static void resetLifetime() {
@@ -366,13 +374,13 @@ public class ProfitManager {
     }
 
     public static long getTotalProfit(boolean lifetime) {
-        long total = 0;
-        Map<String, Integer> targetCounts = lifetime ? lifetimeCounts : sessionCounts;
-        for (Map.Entry<String, Integer> entry : targetCounts.entrySet()) {
-            long price = getItemPrice(entry.getKey());
+        double total = 0;
+        Map<String, Long> targetCounts = lifetime ? lifetimeCounts : sessionCounts;
+        for (Map.Entry<String, Long> entry : targetCounts.entrySet()) {
+            double price = getItemPrice(entry.getKey());
             total += price * entry.getValue();
         }
-        return total;
+        return (long) total;
     }
 
     private static void saveLifetime() {
@@ -387,9 +395,9 @@ public class ProfitManager {
         if (!LIFETIME_FILE.exists())
             return;
         try (java.io.FileReader reader = new java.io.FileReader(LIFETIME_FILE)) {
-            java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<String, Integer>>() {
+            java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<String, Long>>() {
             }.getType();
-            Map<String, Integer> data = GSON.fromJson(reader, type);
+            Map<String, Long> data = GSON.fromJson(reader, type);
             if (data != null) {
                 lifetimeCounts.clear();
                 lifetimeCounts.putAll(data);
@@ -399,10 +407,10 @@ public class ProfitManager {
         }
     }
 
-    public static long getItemPrice(String itemName) {
-        long price = TRACKED_ITEMS.getOrDefault(itemName, 0L);
-        if (price == 0L) {
-            price = bazaarPrices.getOrDefault(itemName, 0L);
+    public static double getItemPrice(String itemName) {
+        double price = TRACKED_ITEMS.getOrDefault(itemName, 0.0);
+        if (price == 0.0) {
+            price = bazaarPrices.getOrDefault(itemName, 0.0);
         }
         return price;
     }
@@ -424,25 +432,25 @@ public class ProfitManager {
 
         // 1. Detect which crop increased in inventory
         String detectedCrop = null;
-        int maxIncrease = 0;
+        long maxIncrease = 0;
 
-        Map<String, Integer> currentCounts = new LinkedHashMap<>();
+        Map<String, Long> currentCounts = new LinkedHashMap<>();
         for (int i = 0; i < 36; i++) {
             net.minecraft.world.item.ItemStack stack = client.player.getInventory().getItem(i);
             if (stack == null || stack.isEmpty())
                 continue;
             String name = stack.getHoverName().getString().replaceAll("\u00A7[0-9a-fk-or]", "").trim();
             if (BASE_CROPS.contains(name)) {
-                currentCounts.put(name, currentCounts.getOrDefault(name, 0) + stack.getCount());
+                currentCounts.put(name, currentCounts.getOrDefault(name, 0L) + stack.getCount());
             }
         }
 
-        for (Map.Entry<String, Integer> entry : currentCounts.entrySet()) {
+        for (Map.Entry<String, Long> entry : currentCounts.entrySet()) {
             String name = entry.getKey();
-            int count = entry.getValue();
-            int prev = prevInventoryCounts.getOrDefault(name, 0);
+            long count = entry.getValue();
+            long prev = prevInventoryCounts.getOrDefault(name, 0L);
             if (count > prev) {
-                int diff = count - prev;
+                long diff = count - prev;
                 if (diff > maxIncrease) {
                     maxIncrease = diff;
                     detectedCrop = name;
@@ -477,28 +485,68 @@ public class ProfitManager {
                         if (currentFarmedCrop.equalsIgnoreCase("Wheat")
                                 || currentFarmedCrop.equalsIgnoreCase("Seeds")) {
                             // Ratio 1 Wheat : 1.5 Seeds (Total 2.5)
-                            int wheatDelta = (int) Math.round(delta / 2.5);
-                            int seedsDelta = (int) delta - wheatDelta;
+                            long wheatDelta = Math.round(delta / 2.5);
+                            long seedsDelta = delta - wheatDelta;
                             if (wheatDelta > 0)
                                 addDrop("Wheat", wheatDelta);
                             if (seedsDelta > 0)
                                 addDrop("Seeds", seedsDelta);
                         } else {
-                            addDrop(currentFarmedCrop, (int) delta);
+                            addDrop(currentFarmedCrop, delta);
                         }
                     }
                 }
                 lastCultivatingValue = newValue;
-                return; // Found value, done for this tick
+
+                // Track Rose Dragon XP from tab list (runs every tick regardless)
+                RoseDragonXpTracker.update(client);
+
+                // Refresh bazaar prices every hour
+                long now = System.currentTimeMillis();
+                if (now - lastBazaarFetchTime > 3600000L) {
+                    fetchBazaarPrices();
+                }
+                return; // Found cultivating value, done for this tick
             }
         }
         lastCultivatingValue = -1;
+
+        // Track Rose Dragon XP from tab list
+        RoseDragonXpTracker.update(client);
 
         // Refresh bazaar prices every hour
         long now = System.currentTimeMillis();
         if (now - lastBazaarFetchTime > 3600000L) {
             fetchBazaarPrices();
         }
+    }
+
+    /**
+     * Sends the current Rose Dragon BIN price data to the player's chat.
+     * Call this when the macro starts so you can verify the fetched prices.
+     */
+    public static void printRoseDragonPriceDebug(net.minecraft.client.Minecraft client) {
+        if (client.player == null)
+            return;
+        String lvl1Str = lastRdLvl1Price > 0 ? String.format("%,d", lastRdLvl1Price) : "not fetched";
+        String lvl200Str = lastRdLvl200Price > 0 ? String.format("%,d", lastRdLvl200Price) : "not found";
+        double pricePerXp = bazaarPrices.getOrDefault("Rose Dragon XP", 0.0);
+        client.player.displayClientMessage(
+                net.minecraft.network.chat.Component.literal(
+                        "§b[Rose Dragon XP] §fLvl1 BIN: §e" + lvl1Str
+                                + "  §fLvl200 BIN: §e" + lvl200Str
+                                + "  §fCoins/XP: §a" + String.format("%.3f", pricePerXp)),
+                false);
+    }
+
+    /**
+     * Called by {@link RoseDragonXpTracker} to record XP gained this tick.
+     * Uses the same session/lifetime accounting as other drops.
+     */
+    public static void addRoseDragonXp(long xpAmount) {
+        if (xpAmount <= 0)
+            return;
+        addDrop("Rose Dragon XP", xpAmount);
     }
 
     private static synchronized void fetchBazaarPrices() {
@@ -520,17 +568,110 @@ public class ProfitManager {
                     if (response.statusCode() == 200) {
                         BazaarApiResponse data = GSON.fromJson(response.body(), BazaarApiResponse.class);
                         if (data != null && data.max > 0) {
-                            bazaarPrices.put(itemName, (long) data.max);
+                            bazaarPrices.put(itemName, (double) data.max);
                         }
                     }
                 } catch (Exception e) {
                     System.err.println("Failed to fetch bazaar price for " + itemName + ": " + e.getMessage());
                 }
             }
+            // Also fetch Rose Dragon XP price
+            fetchRoseDragonXpPrice(client);
         }).start();
+    }
+
+    /**
+     * Fetches the lowest BIN for a level-1 and a level-200 Rose Dragon, then
+     * derives the coin value of a single XP point as:
+     * (price_lvl200 - price_lvl1) / TOTAL_XP_1_TO_200
+     *
+     * <p>
+     * Level 1 : /api/item/price/PET_ROSE_DRAGON/bin → lowest field
+     * <p>
+     * Level 200:
+     * /api/auctions/tag/PET_ROSE_DRAGON/active/bin?filter=ItemNameContains%3D%5BLvl+200%5D
+     * (filtered by itemName containing "[Lvl 200]" — the unfiltered endpoint
+     * sorts cheapest-first so level-200 pets never appear in the default page)
+     */
+    private static void fetchRoseDragonXpPrice(java.net.http.HttpClient http) {
+        // Total XP from level 1 to level 200 (cumulative, from rose_dragon.txt)
+        final long TOTAL_XP = 210_255_385L;
+
+        try {
+            // ── Level 1 lowest BIN ───────────────────────────────────────────
+            long lvl1Price = 0;
+            java.net.http.HttpRequest req1 = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create("https://sky.coflnet.com/api/item/price/PET_ROSE_DRAGON/bin"))
+                    .GET().build();
+            java.net.http.HttpResponse<String> resp1 = http.send(req1,
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (resp1.statusCode() == 200) {
+                BinResponse bin = GSON.fromJson(resp1.body(), BinResponse.class);
+                if (bin != null && bin.lowest > 0) {
+                    lvl1Price = (long) bin.lowest;
+                }
+            }
+
+            // ── Level 200 lowest BIN ───────────────────────────────────────────────
+            // Filter via ItemNameContains so only [Lvl 200] Rose Dragon listings
+            // are returned (unfiltered endpoint sorts cheapest-first, so level-200
+            // pets never appear in the default page).
+            long lvl200Price = 0;
+            java.net.http.HttpRequest req2 = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(
+                            "https://sky.coflnet.com/api/auctions/tag/PET_ROSE_DRAGON/active/bin"
+                                    + "?ItemNameContains=%5BLvl+200%5D"))
+                    .GET().build();
+            java.net.http.HttpResponse<String> resp2 = http.send(req2,
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (resp2.statusCode() == 200) {
+                java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<java.util.List<ActiveBinEntry>>() {
+                }.getType();
+                java.util.List<ActiveBinEntry> listings = GSON.fromJson(resp2.body(), listType);
+                if (listings != null) {
+                    for (ActiveBinEntry listing : listings) {
+                        // Primary check: itemName field contains "[Lvl 200]"
+                        if (listing.itemName == null || !listing.itemName.contains("[Lvl 200]"))
+                            continue;
+                        if (listing.startingBid > 0) {
+                            if (lvl200Price == 0 || listing.startingBid < lvl200Price) {
+                                lvl200Price = listing.startingBid;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Calculate price per XP ────────────────────────────────────────
+            lastRdLvl1Price = lvl1Price;
+            lastRdLvl200Price = lvl200Price;
+            if (lvl200Price > lvl1Price && lvl1Price > 0) {
+                double pricePerXp = (double) (lvl200Price - lvl1Price) / TOTAL_XP;
+                if (pricePerXp > 0) {
+                    bazaarPrices.put("Rose Dragon XP", pricePerXp);
+                    System.out.println("[Ihanuat] Rose Dragon XP price: " + String.format("%.4f", pricePerXp)
+                            + " coins/XP (lvl1=" + lvl1Price + ", lvl200=" + lvl200Price + ")");
+                }
+            } else if (lvl200Price == 0) {
+                System.out.println("[Ihanuat] No level-200 Rose Dragon BINs found; XP price not updated.");
+            }
+        } catch (Exception e) {
+            System.err.println("[Ihanuat] Failed to fetch Rose Dragon XP price: " + e.getMessage());
+        }
     }
 
     private static class BazaarApiResponse {
         double max;
+    }
+
+    /** Response from /api/item/price/{tag}/bin */
+    private static class BinResponse {
+        double lowest;
+    }
+
+    /** One entry from /api/auctions/tag/{tag}/active/bin */
+    private static class ActiveBinEntry {
+        long startingBid;
+        String itemName; // e.g. "[Lvl 200] Rose Dragon"
     }
 }
