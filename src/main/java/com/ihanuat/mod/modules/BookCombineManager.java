@@ -38,7 +38,7 @@ public class BookCombineManager {
             return;
 
         long now = System.currentTimeMillis();
-        if (now - interactionTime < MacroConfig.bookCombineDelay)
+        if (now - interactionTime < MacroConfig.getRandomizedDelay(MacroConfig.bookCombineDelay))
             return;
 
         String title = screen.getTitle().getString();
@@ -243,7 +243,7 @@ public class BookCombineManager {
                     client.execute(() -> GearManager.swapToFarmingTool(client));
                     Thread.sleep(200);
 
-                    com.ihanuat.mod.util.ClientUtils.sendCommand(client, MacroConfig.restartScript);
+                    com.ihanuat.mod.util.ClientUtils.sendCommand(client, MacroConfig.getFullRestartCommand());
                 } catch (Exception ignored) {
                 }
             }).start();
