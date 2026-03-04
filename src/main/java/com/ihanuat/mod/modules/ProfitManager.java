@@ -697,42 +697,51 @@ public class ProfitManager {
             final long TOTAL_XP = table[info.maxLevel];
 
             try {
-                // ── Level 1 lowest BIN ───────────────────────────────────────────
+                // ── Level 1 ─────────────────────────────────────────────────────
                 long lvl1Price = 0;
+                String url1 = "https://sky.coflnet.com/api/auctions/tag/" + info.tag
+                        + "/active/overview?query%5BRarity%5D=" + info.rarity.name()
+                        + "&query%5BPetLevel%5D=1";
+
                 java.net.http.HttpRequest req1 = java.net.http.HttpRequest.newBuilder()
-                        .uri(java.net.URI.create("https://sky.coflnet.com/api/item/price/" + info.tag + "/bin"))
+                        .uri(java.net.URI.create(url1))
                         .GET().build();
                 java.net.http.HttpResponse<String> resp1 = http.send(req1,
                         java.net.http.HttpResponse.BodyHandlers.ofString());
+
                 if (resp1.statusCode() == 200) {
-                    BinResponse bin = GSON.fromJson(resp1.body(), BinResponse.class);
-                    if (bin != null && bin.lowest > 0) {
-                        lvl1Price = (long) bin.lowest;
+                    java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<java.util.List<OverviewEntry>>() {
+                    }.getType();
+                    java.util.List<OverviewEntry> listings = GSON.fromJson(resp1.body(), listType);
+                    if (listings != null) {
+                        for (OverviewEntry entry : listings) {
+                            if (entry.price > 0 && (lvl1Price == 0 || entry.price < lvl1Price)) {
+                                lvl1Price = entry.price;
+                            }
+                        }
                     }
                 }
 
-                // ── Max Level lowest BIN ───────────────────────────────────────────────
+                // ── Max Level ────────────────────────────────────────────────────
                 long lvlMaxPrice = 0;
-                String filter = java.net.URLEncoder.encode("[Lvl " + info.maxLevel + "]", "UTF-8");
-                java.net.http.HttpRequest req2 = java.net.http.HttpRequest.newBuilder()
-                        .uri(java.net.URI.create(
-                                "https://sky.coflnet.com/api/auctions/tag/" + info.tag + "/active/bin"
-                                        + "?ItemNameContains=" + filter))
+                String urlMax = "https://sky.coflnet.com/api/auctions/tag/" + info.tag
+                        + "/active/overview?query%5BRarity%5D=" + info.rarity.name()
+                        + "&query%5BPetLevel%5D=" + info.maxLevel;
+
+                java.net.http.HttpRequest reqMax = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(urlMax))
                         .GET().build();
-                java.net.http.HttpResponse<String> resp2 = http.send(req2,
+                java.net.http.HttpResponse<String> respMax = http.send(reqMax,
                         java.net.http.HttpResponse.BodyHandlers.ofString());
-                if (resp2.statusCode() == 200) {
-                    java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<java.util.List<ActiveBinEntry>>() {
+
+                if (respMax.statusCode() == 200) {
+                    java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<java.util.List<OverviewEntry>>() {
                     }.getType();
-                    java.util.List<ActiveBinEntry> listings = GSON.fromJson(resp2.body(), listType);
+                    java.util.List<OverviewEntry> listings = GSON.fromJson(respMax.body(), listType);
                     if (listings != null) {
-                        for (ActiveBinEntry listing : listings) {
-                            if (listing.itemName == null || !listing.itemName.contains("[Lvl " + info.maxLevel + "]"))
-                                continue;
-                            if (listing.startingBid > 0) {
-                                if (lvlMaxPrice == 0 || listing.startingBid < lvlMaxPrice) {
-                                    lvlMaxPrice = listing.startingBid;
-                                }
+                        for (OverviewEntry entry : listings) {
+                            if (entry.price > 0 && (lvlMaxPrice == 0 || entry.price < lvlMaxPrice)) {
+                                lvlMaxPrice = entry.price;
                             }
                         }
                     }
@@ -759,14 +768,9 @@ public class ProfitManager {
         double max;
     }
 
-    /** Response from /api/item/price/{tag}/bin */
-    private static class BinResponse {
-        double lowest;
-    }
-
-    /** One entry from /api/auctions/tag/{tag}/active/bin */
-    private static class ActiveBinEntry {
-        long startingBid;
-        String itemName; // e.g. "[Lvl 200] Rose Dragon"
+    /** One entry from /api/auctions/tag/{tag}/active/overview */
+    private static class OverviewEntry {
+        long price;
+        String uuid;
     }
 }
