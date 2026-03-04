@@ -468,6 +468,15 @@ public class ConfigScreenFactory {
                                 .build());
 
                 qol.addEntry(builder.entryBuilder()
+                                .startIntSlider(Component.literal("Junk Item Drop Delay (0-1000ms)"),
+                                                MacroConfig.junkItemDropDelay, 0, 1000)
+                                .setDefaultValue(MacroConfig.DEFAULT_JUNK_ITEM_DROP_DELAY)
+                                .setTooltip(Component.literal(
+                                                "Delay between dropping junk items (in milliseconds)."))
+                                .setSaveConsumer(newValue -> MacroConfig.junkItemDropDelay = newValue)
+                                .build());
+
+                qol.addEntry(builder.entryBuilder()
                                 .startBooleanToggle(Component.literal("Stash Manager"), MacroConfig.autoStashManager)
                                 .setDefaultValue(MacroConfig.DEFAULT_AUTO_STASH_MANAGER)
                                 .setSaveConsumer(newValue -> MacroConfig.autoStashManager = newValue)
