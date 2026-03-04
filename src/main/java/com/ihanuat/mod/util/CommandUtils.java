@@ -128,21 +128,51 @@ public class CommandUtils {
     }
 
     /**
-     * Execute /warp garden and wait for the confirmation message.
-     * Blocks until the warp is confirmed or timeout occurs.
+     * Execute /warp garden and wait for the confirmation message or position
+     * change.
+     * Blocks until the warp is confirmed, a significant position change is
+     * detected, or timeout occurs.
      *
      * @param client The Minecraft instance
      * @return true if warp was successful, false if timeout occurred
      */
     public static boolean warpGarden(Minecraft client) {
-        ClientUtils.sendCommand(client, "/warp garden");
-        boolean success = waitForChatMessage(client, "Warping...");
+        if (client.player == null)
+            return false;
 
-        if (success && client.player != null) {
-            ClientUtils.sendDebugMessage(client, "/warp garden success");
+        net.minecraft.world.phys.Vec3 startPos = client.player.position();
+        ClientUtils.sendCommand(client, "/warp garden");
+
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < MESSAGE_TIMEOUT_MS) {
+            // Priority 1: Chat confirmation
+            if (hasReceivedMessage("Warping...")) {
+                ClientUtils.sendDebugMessage(client, "/warp garden success (chat)");
+                return true;
+            }
+
+            // Priority 2: Position fallback (moved > 10 blocks and in Garden)
+            if (client.player != null) {
+                double dist = client.player.position().distanceTo(startPos);
+                if (dist > 10) {
+                    com.ihanuat.mod.MacroState.Location loc = ClientUtils.getCurrentLocation(client);
+                    if (loc == com.ihanuat.mod.MacroState.Location.GARDEN) {
+                        ClientUtils.sendDebugMessage(client,
+                                "/warp garden success (pos fallback, dist: " + String.format("%.1f", dist) + ")");
+                        return true;
+                    }
+                }
+            }
+
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
         }
 
-        return success;
+        return false;
     }
 
     /**
@@ -165,22 +195,48 @@ public class CommandUtils {
     }
 
     /**
-     * Execute /plottp and wait for the confirmation message.
-     * Blocks until the warp is confirmed or timeout occurs.
+     * Execute /plottp and wait for the confirmation message or position change.
+     * Blocks until the warp is confirmed, a significant position change is
+     * detected, or timeout occurs.
      *
      * @param client     The Minecraft instance
      * @param plotNumber The plot number to warp to
      * @return true if warp was successful, false if timeout occurred
      */
     public static boolean plotTp(Minecraft client, String plotNumber) {
-        ClientUtils.sendCommand(client, "/plottp " + plotNumber);
-        boolean success = waitForChatMessage(client, "Teleported you to Plot");
+        if (client.player == null)
+            return false;
 
-        if (success && client.player != null) {
-            ClientUtils.sendDebugMessage(client, "plottp success");
+        net.minecraft.world.phys.Vec3 startPos = client.player.position();
+        ClientUtils.sendCommand(client, "/plottp " + plotNumber);
+
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < MESSAGE_TIMEOUT_MS) {
+            // Priority 1: Chat confirmation
+            if (hasReceivedMessage("Teleported you to Plot")) {
+                ClientUtils.sendDebugMessage(client, "plottp success (chat)");
+                return true;
+            }
+
+            // Priority 2: Position fallback (moved > 10 blocks)
+            if (client.player != null) {
+                double dist = client.player.position().distanceTo(startPos);
+                if (dist > 10) {
+                    ClientUtils.sendDebugMessage(client,
+                            "plottp success (pos fallback, dist: " + String.format("%.1f", dist) + ")");
+                    return true;
+                }
+            }
+
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
         }
 
-        return success;
+        return false;
     }
 
     /**
