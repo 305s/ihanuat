@@ -21,11 +21,16 @@ public class MacroConfig {
         SNEAK, DOUBLE_TAP_SPACE
     }
 
+    public enum DelayMode {
+        LEGACY, EXPERIMENTAL
+    }
+
     public static final int DEFAULT_PEST_THRESHOLD = 5;
     public static final boolean DEFAULT_TRIGGER_PEST_ON_CHAT = true;
     public static final int DEFAULT_VISITOR_THRESHOLD = 5;
     public static final GearSwapMode DEFAULT_GEAR_SWAP_MODE = GearSwapMode.NONE;
     public static final UnflyMode DEFAULT_UNFLY_MODE = UnflyMode.DOUBLE_TAP_SPACE;
+    public static final DelayMode DEFAULT_DELAY_MODE = DelayMode.LEGACY;
     public static final boolean DEFAULT_AUTO_VISITOR = true;
     public static final boolean DEFAULT_AUTO_EQUIPMENT = true;
     public static final boolean DEFAULT_AUTO_STASH_MANAGER = false;
@@ -75,6 +80,7 @@ public class MacroConfig {
             "Fruit Bowl", "Farming Exp Boost", "Sunder VI");
     public static final String DEFAULT_DROP_JUNK_PLOT_TP = "0";
     public static final int DEFAULT_JUNK_THRESHOLD = 3;
+    public static final int DEFAULT_JUNK_ITEM_DROP_DELAY = 300;
     public static final int DEFAULT_PEST_CHAT_TRIGGER_DELAY = 0;
     public static final boolean DEFAULT_SHOW_DEBUG = false;
 
@@ -103,6 +109,7 @@ public class MacroConfig {
     public static int visitorThreshold = DEFAULT_VISITOR_THRESHOLD;
     public static GearSwapMode gearSwapMode = DEFAULT_GEAR_SWAP_MODE;
     public static UnflyMode unflyMode = DEFAULT_UNFLY_MODE;
+    public static DelayMode delayMode = DEFAULT_DELAY_MODE;
     public static boolean autoVisitor = DEFAULT_AUTO_VISITOR;
     public static boolean autoEquipment = DEFAULT_AUTO_EQUIPMENT;
     public static boolean autoStashManager = DEFAULT_AUTO_STASH_MANAGER;
@@ -201,6 +208,7 @@ public class MacroConfig {
     public static java.util.List<String> junkItems = new java.util.ArrayList<>(DEFAULT_JUNK_ITEMS);
     public static String dropJunkPlotTp = DEFAULT_DROP_JUNK_PLOT_TP;
     public static int junkThreshold = DEFAULT_JUNK_THRESHOLD;
+    public static int junkItemDropDelay = DEFAULT_JUNK_ITEM_DROP_DELAY;
     public static boolean showDebug = DEFAULT_SHOW_DEBUG;
 
     public static java.util.List<String> petTrackerList = new java.util.ArrayList<>(DEFAULT_PET_TRACKER_LIST);
@@ -299,6 +307,7 @@ public class MacroConfig {
         data.visitorThreshold = visitorThreshold;
         data.gearSwapMode = gearSwapMode;
         data.unflyMode = unflyMode;
+        data.delayMode = delayMode;
         data.autoVisitor = autoVisitor;
         data.autoEquipment = autoEquipment;
         data.autoStashManager = autoStashManager;
@@ -348,6 +357,7 @@ public class MacroConfig {
         data.junkItems = new java.util.ArrayList<>(junkItems);
         data.dropJunkPlotTp = dropJunkPlotTp;
         data.junkThreshold = junkThreshold;
+        data.junkItemDropDelay = junkItemDropDelay;
         data.showDebug = showDebug;
 
         data.petTrackerList = new java.util.ArrayList<>(petTrackerList);
@@ -391,6 +401,7 @@ public class MacroConfig {
                 visitorThreshold = data.visitorThreshold;
                 gearSwapMode = data.gearSwapMode != null ? data.gearSwapMode : DEFAULT_GEAR_SWAP_MODE;
                 unflyMode = data.unflyMode != null ? data.unflyMode : DEFAULT_UNFLY_MODE;
+                delayMode = data.delayMode != null ? data.delayMode : DEFAULT_DELAY_MODE;
                 autoVisitor = data.autoVisitor;
                 autoEquipment = data.autoEquipment;
                 autoStashManager = data.autoStashManager;
@@ -451,6 +462,7 @@ public class MacroConfig {
                     dropJunkPlotTp = data.dropJunkPlotTp;
                 }
                 junkThreshold = data.junkThreshold;
+                junkItemDropDelay = data.junkItemDropDelay;
                 showDebug = data.showDebug;
 
                 if (data.petTrackerList != null) {
@@ -487,6 +499,7 @@ public class MacroConfig {
         int visitorThreshold = DEFAULT_VISITOR_THRESHOLD;
         GearSwapMode gearSwapMode = DEFAULT_GEAR_SWAP_MODE;
         UnflyMode unflyMode = DEFAULT_UNFLY_MODE;
+        DelayMode delayMode = DEFAULT_DELAY_MODE;
         boolean autoVisitor = DEFAULT_AUTO_VISITOR;
         boolean autoEquipment = DEFAULT_AUTO_EQUIPMENT;
         boolean autoStashManager = DEFAULT_AUTO_STASH_MANAGER;
@@ -536,6 +549,7 @@ public class MacroConfig {
         java.util.List<String> junkItems = new java.util.ArrayList<>(DEFAULT_JUNK_ITEMS);
         String dropJunkPlotTp = DEFAULT_DROP_JUNK_PLOT_TP;
         int junkThreshold = DEFAULT_JUNK_THRESHOLD;
+        int junkItemDropDelay = DEFAULT_JUNK_ITEM_DROP_DELAY;
         boolean showDebug = DEFAULT_SHOW_DEBUG;
 
         java.util.List<String> petTrackerList = new java.util.ArrayList<>(DEFAULT_PET_TRACKER_LIST);

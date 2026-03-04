@@ -49,6 +49,16 @@ public class ConfigScreenFactory {
                                 .build());
 
                 general.addEntry(builder.entryBuilder()
+                                .startEnumSelector(Component.literal("Delay Mode"),
+                                                MacroConfig.DelayMode.class,
+                                                MacroConfig.delayMode)
+                                .setDefaultValue(MacroConfig.DEFAULT_DELAY_MODE)
+                                .setTooltip(Component.literal(
+                                                "§7Legacy: Old hardcoded delays (reliable for some users)\n§7Experimental: New concrete chat/position checks"))
+                                .setSaveConsumer(newValue -> MacroConfig.delayMode = newValue)
+                                .build());
+
+                general.addEntry(builder.entryBuilder()
                                 .startStringDropdownMenu(Component.literal("Farm Script Command"),
                                                 MacroConfig.restartScript)
                                 .setDefaultValue(MacroConfig.DEFAULT_RESTART_SCRIPT)
@@ -154,6 +164,15 @@ public class ConfigScreenFactory {
                                                 MacroConfig.bookCombineDelay, 100, 2000)
                                 .setDefaultValue(MacroConfig.DEFAULT_BOOK_COMBINE_DELAY)
                                 .setSaveConsumer(newValue -> MacroConfig.bookCombineDelay = newValue)
+                                .build());
+
+                delays.addEntry(builder.entryBuilder()
+                                .startIntSlider(Component.literal("Junk Item Drop Delay (0-1000ms)"),
+                                                MacroConfig.junkItemDropDelay, 0, 1000)
+                                .setDefaultValue(MacroConfig.DEFAULT_JUNK_ITEM_DROP_DELAY)
+                                .setTooltip(Component.literal(
+                                                "Delay between dropping junk items (in milliseconds)."))
+                                .setSaveConsumer(newValue -> MacroConfig.junkItemDropDelay = newValue)
                                 .build());
 
                 // --- Wardrobe Swap Category ---
@@ -465,6 +484,15 @@ public class ConfigScreenFactory {
                                 .setTooltip(Component.literal(
                                                 "Triggers the drop sequence after this many junk items accumulate."))
                                 .setSaveConsumer(newValue -> MacroConfig.junkThreshold = newValue)
+                                .build());
+
+                qol.addEntry(builder.entryBuilder()
+                                .startIntSlider(Component.literal("Junk Item Drop Delay (0-1000ms)"),
+                                                MacroConfig.junkItemDropDelay, 0, 1000)
+                                .setDefaultValue(MacroConfig.DEFAULT_JUNK_ITEM_DROP_DELAY)
+                                .setTooltip(Component.literal(
+                                                "Delay between dropping junk items (in milliseconds)."))
+                                .setSaveConsumer(newValue -> MacroConfig.junkItemDropDelay = newValue)
                                 .build());
 
                 qol.addEntry(builder.entryBuilder()
