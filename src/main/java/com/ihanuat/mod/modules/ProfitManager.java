@@ -121,7 +121,8 @@ public class ProfitManager {
             Map.entry("Compost", "COMPOST"),
             Map.entry("Jelly", "JELLY"),
             Map.entry("Helianthus", "HELIANTHUS"),
-            Map.entry("Vermin Vaporizer Chip", "VERMIN_VAPORIZER_GARDEN_CHIP"));
+            Map.entry("Vermin Vaporizer Chip", "VERMIN_VAPORIZER_GARDEN_CHIP"),
+            Map.entry("ENCHANTMENT_GREEN_THUMB_1", "ENCHANTMENT_GREEN_THUMB_1"));
 
     private static final Pattern PEST_PATTERN = Pattern.compile("received\\s+(\\d+)x\\s+(.+?)\\s+for\\s+killing",
             Pattern.CASE_INSENSITIVE);
@@ -292,7 +293,29 @@ public class ProfitManager {
         saveLifetime();
     }
 
+    public static void addVisitorGain(String itemName, long count) {
+        // Store directly — bypass addDrop's normalization to preserve [Visitor] prefix
+        if (com.ihanuat.mod.MacroStateManager.isMacroRunning()) {
+            sessionCounts.put(itemName, sessionCounts.getOrDefault(itemName, 0L) + count);
+        }
+        lifetimeCounts.put(itemName, lifetimeCounts.getOrDefault(itemName, 0L) + count);
+        saveLifetime();
+    }
+
+    public static void addVisitorCost(long coinsSpent) {
+        String key = "[Visitor] Visitor Cost";
+        sessionCounts.put(key, sessionCounts.getOrDefault(key, 0L) - coinsSpent);
+        lifetimeCounts.put(key, lifetimeCounts.getOrDefault(key, 0L) - coinsSpent);
+        saveLifetime();
+    }
+
     public static String getCategorizedName(String name) {
+        if (name.equals("[Visitor] Visitor Cost")) {
+            return "§c§l[COST] §fVisitor Cost";
+        }
+        if (name.startsWith("[Visitor] ")) {
+            return "§5§l[VISITOR] §f" + name.substring(10);
+        }
         String color = "§7";
         String tag = "OTHER";
 
@@ -327,6 +350,10 @@ public class ProfitManager {
                 return "§6§l[PET]";
             case "Misc Drops":
                 return "§b§l[MISC]";
+            case "Visitor":
+                return "§5§l[VISITOR]";
+            case "Costs":
+                return "§c§l[COST]";
             default:
                 return "§7§l[OTHER]";
         }
@@ -383,6 +410,8 @@ public class ProfitManager {
         compact.put("Pest Items", 0L);
         compact.put("Pets", 0L);
         compact.put("Misc Drops", 0L);
+        compact.put("Visitor", 0L);
+        compact.put("Costs", 0L);
         compact.put("Others", 0L);
 
         Map<String, Long> targetCounts = lifetime ? lifetimeCounts : sessionCounts;
@@ -400,6 +429,12 @@ public class ProfitManager {
                 compact.put("Pets", compact.get("Pets") + (long) profit);
             } else if (MISC_DROPS_SET.contains(name)) {
                 compact.put("Misc Drops", compact.get("Misc Drops") + (long) profit);
+            } else if (name.equals("[Visitor] Visitor Cost")) {
+                compact.put("Costs", compact.get("Costs") + (long) profit);
+            } else if (name.startsWith("[Visitor] ")) {
+                compact.put("Visitor", compact.get("Visitor") + (long) profit);
+            } else if (profit < 0) {
+                compact.put("Costs", compact.get("Costs") + (long) profit);
             } else {
                 compact.put("Others", compact.get("Others") + (long) profit);
             }
@@ -464,6 +499,21 @@ public class ProfitManager {
     }
 
     public static double getItemPrice(String itemName) {
+        // Visitor cost: count IS the coin amount, so price = 1.0
+        if ("[Visitor] Visitor Cost".equals(itemName)) {
+            return 1.0;
+        }
+        // Copper: value based on Green Thumb (1500 copper)
+        if ("[Visitor] Copper".equals(itemName)) {
+            double greenThumbPrice = bazaarPrices.getOrDefault("ENCHANTMENT_GREEN_THUMB_1", 0.0);
+            if (greenThumbPrice <= 0) {
+                greenThumbPrice = TRACKED_ITEMS.getOrDefault("ENCHANTMENT_GREEN_THUMB_1", 0.0);
+            }
+            if (greenThumbPrice > 0) {
+                return greenThumbPrice / 1500.0;
+            }
+            return 0.0;
+        }
         double price = TRACKED_ITEMS.getOrDefault(itemName, 0.0);
         if (price == 0.0) {
             price = bazaarPrices.getOrDefault(itemName, 0.0);
@@ -666,7 +716,7 @@ public class ProfitManager {
 
             try {
                 java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
-                        .uri(java.net.URI.create("https://sky.coflnet.com/api/item/price/" + itemTag))
+                        .uri(java.net.URI.create("https://sky.coflnet.com/api/item/price/" + itemTag + "/current"))
                         .GET()
                         .build();
 
@@ -674,8 +724,8 @@ public class ProfitManager {
                         java.net.http.HttpResponse.BodyHandlers.ofString());
                 if (response.statusCode() == 200) {
                     BazaarApiResponse data = GSON.fromJson(response.body(), BazaarApiResponse.class);
-                    if (data != null && data.max > 0) {
-                        bazaarPrices.put(itemName, (double) data.max);
+                    if (data != null && data.buy > 0) {
+                        bazaarPrices.put(itemName, data.buy);
                     }
                 }
             } catch (Exception e) {
@@ -755,8 +805,44 @@ public class ProfitManager {
         }
     }
 
+    // ── Cofl API Item ID Cache ──
+    private static final java.util.Map<String, String> idByNameCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static String fetchIdByName(String name) {
+        if (name == null || name.isEmpty())
+            return null;
+        if (idByNameCache.containsKey(name)) {
+            String cached = idByNameCache.get(name);
+            return cached.isEmpty() ? null : cached;
+        }
+
+        try {
+            String encoded = java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8);
+            java.net.http.HttpClient http = java.net.http.HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(3)).build();
+            java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create("https://sky.coflnet.com/api/items/search/" + encoded + "?limit=1"))
+                    .GET().build();
+            java.net.http.HttpResponse<String> resp = http.send(req,
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 200) {
+                String body = resp.body();
+                com.google.gson.JsonArray arr = com.google.gson.JsonParser.parseString(body).getAsJsonArray();
+                if (arr.size() > 0) {
+                    String tag = arr.get(0).getAsJsonObject().get("tag").getAsString();
+                    idByNameCache.put(name, tag);
+                    return tag;
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[Ihanuat] Cofl item ID lookup failed for '" + name + "': " + e.getMessage());
+        }
+        idByNameCache.put(name, "");
+        return null;
+    }
+
     private static class BazaarApiResponse {
-        double max;
+        double buy;
     }
 
     /** Response from /api/item/price/{tag}/bin */

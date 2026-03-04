@@ -193,9 +193,10 @@ public class ProfitHudRenderer {
         if (MacroConfig.compactProfitCalculator) {
             Map<String, Long> compactDrops = ProfitManager.getCompactDrops(lifetime);
             for (Map.Entry<String, Long> entry : compactDrops.entrySet()) {
-                if (entry.getValue() > 0) {
+                if (entry.getValue() != 0) {
                     String label = ProfitManager.getCompactCategoryLabel(entry.getKey());
-                    drawRow(g, client, rowY, label, formatProfit(entry.getValue()), 0xFFFFFF55);
+                    int valColor = entry.getKey().equals("Costs") ? 0xFFFF5555 : 0xFFFFFF55;
+                    drawRow(g, client, rowY, label, formatProfit(entry.getValue()), valColor);
                     rowY += ROW_HEIGHT;
                 }
             }
@@ -215,9 +216,14 @@ public class ProfitHudRenderer {
                 String labelText = categorizedName + " §r(" + countDisplay + ")";
                 String valueText = formatProfit(lineProfit);
 
-                // For the row value specifically, we can use a slightly highlighted yellow if
-                // it's a known item
-                int color = ProfitManager.isPredefinedTrackedItem(itemName) ? 0xFFFFFF55 : VALUE_COLOR;
+                int color;
+                if (itemName.equals("[Visitor] Visitor Cost")) {
+                    color = 0xFFFF5555; // red for costs
+                } else if (itemName.startsWith("[Visitor] ")) {
+                    color = 0xFFFFFF55; // yellow for visitor gains
+                } else {
+                    color = ProfitManager.isPredefinedTrackedItem(itemName) ? 0xFFFFFF55 : VALUE_COLOR;
+                }
                 drawRow(g, client, rowY, labelText, valueText, color);
                 rowY += ROW_HEIGHT;
             }
