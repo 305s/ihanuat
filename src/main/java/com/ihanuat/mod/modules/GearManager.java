@@ -484,6 +484,24 @@ public class GearManager {
     }
 
     public static void executeRodSequence(Minecraft client) {
+        // Wait for any ongoing equipment swap first
+        if (isSwappingEquipment) {
+            ClientUtils.sendDebugMessage(client, "Waiting for equipment swap before rod sequence...");
+            long waitStart = System.currentTimeMillis();
+            try {
+                while (isSwappingEquipment && System.currentTimeMillis() - waitStart < 5000) {
+                    Thread.sleep(50);
+                }
+                if (isSwappingEquipment) {
+                    ClientUtils.sendDebugMessage(client,
+                            "§cRod sequence: Equipment swap timed out, proceeding anyway.");
+                } else {
+                    ClientUtils.sendDebugMessage(client, "Equipment swap done! Starting rod sequence.");
+                }
+            } catch (InterruptedException ignored) {
+            }
+        }
+
         client.player.displayClientMessage(Component.literal("\u00A7eExecuting Rod Swap sequence..."), true);
 
         // Find the rod slot first (don't swap yet)

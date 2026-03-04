@@ -337,8 +337,6 @@ public class PestManager {
                             Thread.sleep(50);
                         Thread.sleep(250);
                     }
-                } else if (MacroConfig.gearSwapMode == MacroConfig.GearSwapMode.ROD) {
-                    GearManager.executeRodSequence(client);
                 }
 
                 if (isCleaningInProgress) {
@@ -359,7 +357,17 @@ public class PestManager {
                     while (client.screen != null && !isCleaningInProgress) {
                         Thread.sleep(50);
                     }
-                    Thread.sleep(500); // Larger safety buffer for script restart
+                    Thread.sleep(250);
+                }
+
+                if (isCleaningInProgress) {
+                    prepSwappedForCurrentPestCycle = false;
+                    return;
+                }
+
+                // 3. Rod Sequence (Wait for previous steps confirmed by GearManager checks)
+                if (MacroConfig.gearSwapMode == MacroConfig.GearSwapMode.ROD) {
+                    GearManager.executeRodSequence(client);
                 }
 
                 // 3. Final Resume
