@@ -234,7 +234,7 @@ public class PetXpTracker {
 
         if (previousXp >= 0 && absoluteXp > previousXp) {
             long delta = absoluteXp - previousXp;
-            if (delta < 10_000_000L) {
+            if (delta < 2_000_000L) {
                 ProfitManager.addPetXp(activePet.name, delta);
             }
         }
