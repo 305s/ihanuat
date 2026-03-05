@@ -30,7 +30,7 @@ public class ConfigScreenFactory {
 
                 general.addEntry(builder.entryBuilder()
                                 .startTextDescription(Component.literal(
-                                                "§cDisable Auto Pest, Auto Visitor, and Auto Wardrobe in Taunahi settings\nDisable any mods that hide /warp garden feedback messages (Warping...) and PlotTP messages as we rely on this to work (usually Skyblocker)."))
+                                                "§cDisable Auto Pest, Auto Visitor, and Auto Wardrobe in Taunahi settings. Make sure Vacuum Bag Empty At Start is turned on in Taunahi also.\nDisable SkyHanni or any mods that hide pest drop messages (needed for Profit Calculator)\nDisable any mods that hide /warp garden feedback messages (Warping...) and PlotTP messages as we rely on this to work (usually Skyblocker)."))
                                 .build());
 
                 general.addEntry(builder.entryBuilder()
