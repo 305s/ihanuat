@@ -32,24 +32,55 @@ public class GeorgeManager {
         confirmationCount = 0;
     }
 
-    public static void handleGeorgeMenu(Minecraft client, AbstractContainerScreen<?> screen) {
-        if (!isSelling)
-            return;
+    public static long lastGeorgeCallTime = 0;
+    private static final long GEORGE_RECALL_DELAY_MS = 3000;
 
+    public static void handleGeorgeMenu(Minecraft client, AbstractContainerScreen<?> screen) {
         if (screen == null)
             return;
+
+        String rawTitle = screen.getTitle().getString();
+        String title = rawTitle.replaceAll("(?i)§.", "").toLowerCase();
+
+        if (!isSelling) {
+            // Failsafe: if George GUI is open but we aren't selling, check if we should
+            // close it
+            if (title.contains("george") || title.contains("sell pets") || title.contains("pet collector")
+                    || title.contains("offer pets")) {
+                if (countPetsInInventory(client) == 0 && MacroStateManager.isMacroRunning()) {
+                    client.player.displayClientMessage(
+                            Component.literal("§c[Ihanuat] Unexpected George GUI detected. Restarting script..."),
+                            false);
+                    client.player.closeContainer();
+
+                    // Restart script as a safety measure
+                    if (com.ihanuat.mod.MacroStateManager
+                            .getCurrentState() == com.ihanuat.mod.MacroState.State.FARMING) {
+                        new Thread(() -> {
+                            try {
+                                com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
+                                Thread.sleep(1000);
+                                ClientUtils.sendDebugMessage(client,
+                                        "Restarting script after unexpected George GUI closure");
+                                com.ihanuat.mod.util.CommandUtils.startScript(client,
+                                        MacroConfig.getFullRestartCommand(), 0);
+                            } catch (InterruptedException ignored) {
+                            }
+                        }).start();
+                    }
+                }
+            }
+            return;
+        }
 
         long now = System.currentTimeMillis();
         if (now - interactionTime < MacroConfig.getRandomizedDelay(MacroConfig.guiClickDelay))
             return;
 
-        String title = screen.getTitle().getString();
-
         // Stage 0: Initial George GUI or Pet Selection
         if (interactionStage == 0) {
-
-            if (!title.toLowerCase().contains("george") && !title.toLowerCase().contains("sell pets")
-                    && !title.toLowerCase().contains("pet collector") && !title.toLowerCase().contains("offer pets"))
+            if (!title.contains("george") && !title.contains("sell pets")
+                    && !title.contains("pet collector") && !title.contains("offer pets"))
                 return;
 
             int petSlotIdx = -1;
@@ -160,7 +191,7 @@ public class GeorgeManager {
             // Handle GUI closing or failing to open
             if (client.screen == null) {
                 long now = System.currentTimeMillis();
-                if (now - interactionTime > 1000) {
+                if (now - interactionTime > 1500 && now - lastGeorgeCallTime > GEORGE_RECALL_DELAY_MS) {
                     int remaining = countPetsInInventory(client);
                     if (remaining > 0) {
                         client.player.displayClientMessage(
@@ -170,6 +201,7 @@ public class GeorgeManager {
                         interactionTime = now;
                         interactionStage = 0;
                         confirmationCount = 0;
+                        lastGeorgeCallTime = now;
                         com.ihanuat.mod.util.ClientUtils.sendCommand(client, "/call george");
                     } else {
                         finishSelling(client);
@@ -212,7 +244,8 @@ public class GeorgeManager {
                     com.ihanuat.mod.util.ClientUtils.waitForGearAndGui(client);
                     client.execute(() -> {
                         GearManager.swapToFarmingTool(client);
-                        ClientUtils.sendDebugMessage(client, "Starting farming script after George sell: " + MacroConfig.getFullRestartCommand());
+                        ClientUtils.sendDebugMessage(client,
+                                "Starting farming script after George sell: " + MacroConfig.getFullRestartCommand());
                         com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
                     });
                 } catch (Exception ignored) {
@@ -272,6 +305,7 @@ public class GeorgeManager {
                     isSelling = true;
                     interactionStage = 0;
                     interactionTime = System.currentTimeMillis();
+                    lastGeorgeCallTime = interactionTime;
                     confirmationCount = 0;
                     com.ihanuat.mod.util.ClientUtils.sendCommand(client, "/call george");
                 } else {
