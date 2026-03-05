@@ -673,7 +673,7 @@ public class ProfitManager {
                 compact.put("Pest Items", compact.get("Pest Items") + (long) profit);
             } else if (PETS_SET.contains(name)) {
                 compact.put("Pets", compact.get("Pets") + (long) profit);
-            } else if (MISC_DROPS_SET.contains(name)) {
+            } else if (MISC_DROPS_SET.contains(name) || name.toLowerCase().startsWith("pet xp (")) {
                 compact.put("Misc Drops", compact.get("Misc Drops") + (long) profit);
             } else if (name.equals("[Visitor] Visitor Cost") || name.equals("[Spray] Sprayonator")) {
                 compact.put("Costs", compact.get("Costs") + (long) profit);
