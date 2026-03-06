@@ -266,6 +266,14 @@ public class PestManager {
                 e.printStackTrace();
                 ClientUtils.sendDebugMessage(client,
                         "§cCRITICAL ERROR in handlePestCleaningFinished: " + e.getMessage());
+                ClientUtils.sendDebugMessage(client, "§6Triggering failsafe: Returning to farming...");
+                isCleaningInProgress = false;
+                isPrepSwapping = false;
+                MacroStateManager.setCurrentState(MacroState.State.FARMING);
+                client.execute(() -> {
+                    GearManager.swapToFarmingTool(client);
+                    com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
+                });
             }
         }).start();
 
