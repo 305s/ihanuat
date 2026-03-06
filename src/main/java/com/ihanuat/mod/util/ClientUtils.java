@@ -22,10 +22,14 @@ public class ClientUtils {
     private static final long COMMAND_COOLDOWN_MS = 250;
 
     public static void sendDebugMessage(Minecraft client, String message) {
-        if (client.player != null && MacroConfig.showDebug) {
-            client.player.displayClientMessage(
-                    Component.literal("§9[Debug] " + message),
-                    false);
+        if (MacroConfig.showDebug) {
+            client.execute(() -> {
+                if (client.player != null) {
+                    client.player.displayClientMessage(
+                            Component.literal("§9[Debug] " + message),
+                            false);
+                }
+            });
         }
     }
 
@@ -44,12 +48,18 @@ public class ClientUtils {
         }
 
         if (cmd.startsWith("/")) {
-            client.getConnection().sendCommand(cmd.substring(1));
+            client.execute(() -> {
+                if (client.getConnection() != null)
+                    client.getConnection().sendCommand(cmd.substring(1));
+            });
         } else {
             if (cmd.equalsIgnoreCase(".ez-stopscript")) {
                 client.execute(() -> forceReleaseKeys(client));
             }
-            client.getConnection().sendChat(cmd);
+            client.execute(() -> {
+                if (client.getConnection() != null)
+                    client.getConnection().sendChat(cmd);
+            });
         }
 
         lastCommandTime = System.currentTimeMillis();
@@ -75,6 +85,18 @@ public class ClientUtils {
     public static MacroState.Location getCurrentLocation(Minecraft client) {
         if (client.level == null || client.player == null)
             return MacroState.Location.UNKNOWN;
+
+        if (!client.isSameThread()) {
+            java.util.concurrent.CompletableFuture<MacroState.Location> future = new java.util.concurrent.CompletableFuture<>();
+            client.execute(() -> {
+                future.complete(getCurrentLocation(client));
+            });
+            try {
+                return future.get(1, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception e) {
+                return MacroState.Location.UNKNOWN;
+            }
+        }
 
         Scoreboard scoreboard = client.level.getScoreboard();
         Objective sidebar = scoreboard != null
