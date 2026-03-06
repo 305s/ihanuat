@@ -192,17 +192,21 @@ public class PestManager {
         ClientUtils.sendDebugMessage(client, "Pest cleaning finished sequence started.");
         client.player.displayClientMessage(Component.literal("§aPest cleaning finished detected."), true);
         new Thread(() -> {
+            String progressContext = "Initializing";
             try {
                 if (MacroConfig.unflyMode == MacroConfig.UnflyMode.DOUBLE_TAP_SPACE) {
+                    progressContext = "Performing unfly";
                     ClientUtils.sendDebugMessage(client, "Finisher: Performing unfly (Double Tap Space)...");
                     performUnfly(client);
                     Thread.sleep(150);
                 }
 
+                progressContext = "Checking visitor count";
                 int visitors = VisitorManager.getVisitorCount(client);
                 ClientUtils.sendDebugMessage(client, "Finisher: Visitor count check: " + visitors + " (Threshold: "
                         + MacroConfig.visitorThreshold + ")");
                 if (visitors >= MacroConfig.visitorThreshold) {
+                    progressContext = "Visitor threshold met - Checking location";
                     MacroState.Location loc = ClientUtils.getCurrentLocation(client);
                     if (loc != MacroState.Location.GARDEN) {
                         client.player.displayClientMessage(
@@ -215,10 +219,12 @@ public class PestManager {
                         ClientUtils.sendDebugMessage(client, "Already in Garden, skipping /warp garden for visitors");
                     }
 
+                    progressContext = "Swapping to farming tool (Sync)";
                     GearManager.swapToFarmingToolSync(client);
 
                     if (MacroConfig.autoWardrobeVisitor && MacroConfig.wardrobeSlotVisitor > 0
                             && GearManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotVisitor) {
+                        progressContext = "Triggering wardrobe swap (Visitor)";
                         client.player.displayClientMessage(Component.literal(
                                 "\u00A7eSwapping to Visitor Wardrobe (Slot " + MacroConfig.wardrobeSlotVisitor
                                         + ")..."),
@@ -237,9 +243,11 @@ public class PestManager {
                         }
                     }
 
+                    progressContext = "Waiting for gear and gui stability";
                     ClientUtils.sendDebugMessage(client,
                             "Finisher (Visitor): Gear restoration done, waiting for stability...");
                     ClientUtils.waitForGearAndGui(client);
+                    progressContext = "Transitioning to VISITING state";
                     ClientUtils.sendDebugMessage(client,
                             "Finisher (Visitor): stability reached, transitioning to VISITING.");
                     ClientUtils.sendDebugMessage(client,
@@ -255,21 +263,31 @@ public class PestManager {
                     return;
                 }
 
+                progressContext = "Finisher: Return to Farm (warping to garden)";
                 Thread.sleep(150);
                 ClientUtils.sendDebugMessage(client, "Finisher: Warping to garden (Return to Farm)...");
                 com.ihanuat.mod.util.CommandUtils.warpGarden(client);
                 Thread.sleep(250);
                 isReturningFromPestVisitor = true;
+                progressContext = "Finisher: Calling finalizeReturnToFarm";
                 ClientUtils.sendDebugMessage(client, "Finisher: Calling finalizeReturnToFarm...");
                 finalizeReturnToFarm(client);
             } catch (Exception e) {
                 e.printStackTrace();
                 ClientUtils.sendDebugMessage(client,
-                        "§cCRITICAL ERROR in handlePestCleaningFinished: " + e.getMessage());
+                        "§cCRITICAL ERROR in handlePestCleaningFinished (Context: " + progressContext + "): "
+                                + e.getMessage());
                 ClientUtils.sendDebugMessage(client, "§6Triggering failsafe: Returning to farming...");
                 isCleaningInProgress = false;
                 isPrepSwapping = false;
+
                 MacroStateManager.setCurrentState(MacroState.State.FARMING);
+                ClientUtils.sendDebugMessage(client, "§6Failsafe: Warping to garden...");
+                com.ihanuat.mod.util.CommandUtils.warpGarden(client);
+                try {
+                    Thread.sleep(250);
+                } catch (Exception ignored) {
+                }
                 client.execute(() -> {
                     GearManager.swapToFarmingTool(client);
                     com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
