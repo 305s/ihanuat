@@ -145,8 +145,22 @@ public class VisitorManager {
                 && GearManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotFarming) {
             client.player.displayClientMessage(Component.literal(
                     "\u00A7eRestoring Farming Wardrobe (Slot " + MacroConfig.wardrobeSlotFarming + ")..."), true);
-            client.execute(() -> GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotFarming));
-            ClientUtils.waitForWardrobeGui(client);
+            GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotFarming);
+            if (GearManager.isSwappingWardrobe) {
+                try {
+                    ClientUtils.sendDebugMessage(client, "finalizeReturnToFarm: Waiting for wardrobe GUI...");
+                    ClientUtils.waitForWardrobeGui(client);
+                    ClientUtils.sendDebugMessage(client,
+                            "finalizeReturnToFarm: Wardrobe GUI detected, waiting for swap to complete...");
+                    while (GearManager.isSwappingWardrobe)
+                        Thread.sleep(50);
+                    while (GearManager.wardrobeCleanupTicks > 0)
+                        Thread.sleep(50);
+                    Thread.sleep(350);
+                    ClientUtils.sendDebugMessage(client, "finalizeReturnToFarm: Wardrobe swap fully complete.");
+                } catch (InterruptedException ignored) {
+                }
+            }
         }
 
         ClientUtils.waitForGearAndGui(client);
