@@ -42,7 +42,8 @@ public class PestReturnManager {
                 int visitors = VisitorManager.getVisitorCount(client);
                 ClientUtils.sendDebugMessage(client, "Finisher: Visitor count check: " + visitors + " (Threshold: "
                         + MacroConfig.visitorThreshold + ")");
-                if (visitors >= MacroConfig.visitorThreshold) {
+                if (visitors >= MacroConfig.visitorThreshold
+                    && !VisitorManager.isVisitorReentryCooldownActive(client, true)) {
                     MacroState.Location loc = ClientUtils.getCurrentLocation(client);
                     if (loc != MacroState.Location.GARDEN) {
                         client.player.displayClientMessage(
@@ -93,6 +94,11 @@ public class PestReturnManager {
                     client.player.displayClientMessage(
                             Component.literal("§ePest cleaner finished (visitors)."), false);
                     return;
+                }
+
+                if (visitors >= MacroConfig.visitorThreshold) {
+                    ClientUtils.sendDebugMessage(client,
+                            "Finisher: Visitor threshold met, but cooldown is active. Returning to farm.");
                 }
 
                 MacroWorkerThread.sleep(150);
@@ -168,7 +174,8 @@ public class PestReturnManager {
 
             int visitors = VisitorManager.getVisitorCount(client);
             ClientUtils.sendDebugMessage(client, "Finalize: Visitor count check: " + visitors);
-            if (visitors >= MacroConfig.visitorThreshold) {
+            if (visitors >= MacroConfig.visitorThreshold
+                    && !VisitorManager.isVisitorReentryCooldownActive(client, true)) {
                 client.execute(() -> {
                     GearManager.swapToFarmingTool(client);
                 });
@@ -213,6 +220,11 @@ public class PestReturnManager {
                 com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:visitor", 0);
                 PestManager.isCleaningInProgress = false;
                 return;
+            }
+
+            if (visitors >= MacroConfig.visitorThreshold) {
+                ClientUtils.sendDebugMessage(client,
+                        "Finalize: Visitor threshold met, but cooldown is active. Continuing farming.");
             }
 
             ClientUtils.sendDebugMessage(client, "Finalize: Swapping to farming tool...");

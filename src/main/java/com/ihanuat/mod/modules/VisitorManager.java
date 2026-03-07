@@ -1,10 +1,15 @@
 package com.ihanuat.mod.modules;
 
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroState;
 import com.ihanuat.mod.MacroStateManager;
 import com.ihanuat.mod.MacroWorkerThread;
 import com.ihanuat.mod.util.ClientUtils;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -12,15 +17,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 public class VisitorManager {
     private static final Pattern VISITORS_PATTERN = Pattern.compile("Visitors:\\s*\\(?(\\d+)\\)?");
+    private static final long VISITOR_REENTRY_COOLDOWN_MS = 3L * 60L * 1000L;
 
     private static VisitorOffer pendingOffer = null;
+    private static volatile long visitorReentryCooldownUntilMs = 0L;
 
     // ── Inner Data Classes ──
 
@@ -72,6 +74,7 @@ public class VisitorManager {
     }
 
     public static void handleVisitorScriptFinished(Minecraft client) {
+        startVisitorReentryCooldown(client);
         client.player.displayClientMessage(Component.literal("\u00A7aVisitor sequence complete. Returning to farm..."),
                 true);
         MacroWorkerThread.getInstance().submit("VisitorFinished-ReturnToFarm", () -> {
@@ -100,7 +103,7 @@ public class VisitorManager {
             return;
 
         int visitors = getVisitorCount(client);
-        if (visitors >= MacroConfig.visitorThreshold) {
+        if (visitors >= MacroConfig.visitorThreshold && !isVisitorReentryCooldownActive(client, true)) {
             client.player.displayClientMessage(
                     Component.literal("\u00A7dVisitor Threshold Met (" + visitors + "). Redirecting to Visitors..."),
                     true);
@@ -132,6 +135,11 @@ public class VisitorManager {
             com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:visitor", 0);
             PestManager.isCleaningInProgress = false;
             return;
+        }
+
+        if (visitors >= MacroConfig.visitorThreshold) {
+            ClientUtils.sendDebugMessage(client,
+                    "Visitor threshold met, but re-entry cooldown is active. Continuing farming.");
         }
 
         client.execute(() -> {
@@ -325,5 +333,28 @@ public class VisitorManager {
 
     public static void clearPendingOffer() {
         pendingOffer = null;
+    }
+
+    public static void startVisitorReentryCooldown(Minecraft client) {
+        visitorReentryCooldownUntilMs = System.currentTimeMillis() + VISITOR_REENTRY_COOLDOWN_MS;
+        ClientUtils.sendDebugMessage(client, "Visitor re-entry cooldown started (3 minutes).");
+    }
+
+    public static boolean isVisitorReentryCooldownActive(Minecraft client, boolean showMessage) {
+        long now = System.currentTimeMillis();
+        long remainingMs = visitorReentryCooldownUntilMs - now;
+        if (remainingMs <= 0) {
+            return false;
+        }
+
+        long remainingSeconds = (remainingMs + 999L) / 1000L;
+        ClientUtils.sendDebugMessage(client,
+                "Visitor re-entry cooldown active (" + remainingSeconds + "s remaining). Skipping visitor macro.");
+        if (showMessage && client.player != null) {
+            client.player.displayClientMessage(
+                    Component.literal("\u00A7eVisitor cooldown active (" + remainingSeconds + "s). Staying on farm."),
+                    true);
+        }
+        return true;
     }
 }
