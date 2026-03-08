@@ -9,9 +9,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 public class PestCleaningSequencer {
-    
-    public static void startCleaningSequence(Minecraft client, String plot, String currentInfestedPlot, int currentPestSessionId) {
-        if (PestManager.isCleaningInProgress || WardrobeManager.isSwappingWardrobe || EquipmentManager.isSwappingEquipment)
+
+    public static void startCleaningSequence(Minecraft client, String plot, String currentInfestedPlot,
+            int currentPestSessionId) {
+        if (PestManager.isCleaningInProgress || WardrobeManager.isSwappingWardrobe
+                || EquipmentManager.isSwappingEquipment)
             return;
 
         ClientUtils.sendDebugMessage(client,
@@ -53,14 +55,15 @@ public class PestCleaningSequencer {
                 }
 
                 boolean isSamePlot = currentInfestedPlot != null && currentInfestedPlot.equals(currentPlot);
-                boolean shouldDoAotv = PestAotvManager.shouldDoAotvOnCurrentPlot(client, currentInfestedPlot, isSamePlot);
-
-                if (!warpToInfestedPlotIfNeeded(client, currentInfestedPlot, isSamePlot)) {
-                    shouldDoAotv = false;
-                }
+                boolean shouldDoAotv = PestAotvManager.shouldDoAotvOnCurrentPlot(client, currentInfestedPlot,
+                        isSamePlot);
 
                 if (shouldDoAotv) {
+                    // AOTV to roof handles movement — skip /tptoplot
                     PestAotvManager.performAotvToRoof(client);
+                } else {
+                    // AOTV off: always /tptoplot, even on same plot
+                    warpToInfestedPlotIfNeeded(client, currentInfestedPlot, false);
                 }
 
                 startPestCleanerScript(client, currentInfestedPlot);
@@ -74,7 +77,8 @@ public class PestCleaningSequencer {
     private static boolean restoreGearForCleaning(Minecraft client) throws InterruptedException {
         if (MacroConfig.autoWardrobePest) {
             int targetSlot = MacroConfig.wardrobeSlotFarming;
-            if ((PestPrepSwapManager.prepSwappedForCurrentPestCycle || WardrobeManager.trackedWardrobeSlot != targetSlot)
+            if ((PestPrepSwapManager.prepSwappedForCurrentPestCycle
+                    || WardrobeManager.trackedWardrobeSlot != targetSlot)
                     && targetSlot > 0) {
                 client.player.displayClientMessage(
                         Component.literal("§eRestoring Farming Wardrobe (Slot " + targetSlot + ") for Vacuuming..."),
@@ -103,7 +107,8 @@ public class PestCleaningSequencer {
         return true;
     }
 
-    private static boolean warpToInfestedPlotIfNeeded(Minecraft client, String currentInfestedPlot, boolean isSamePlot) throws InterruptedException {
+    private static boolean warpToInfestedPlotIfNeeded(Minecraft client, String currentInfestedPlot, boolean isSamePlot)
+            throws InterruptedException {
         if (isSamePlot || currentInfestedPlot == null || currentInfestedPlot.equals("0"))
             return true;
 
@@ -112,7 +117,8 @@ public class PestCleaningSequencer {
             return !MacroWorkerThread.shouldAbortTask(client);
         }
 
-        client.player.displayClientMessage(Component.literal("§cFailed to warp to plot " + currentInfestedPlot + "!"), true);
+        client.player.displayClientMessage(Component.literal("§cFailed to warp to plot " + currentInfestedPlot + "!"),
+                true);
         return false;
     }
 
