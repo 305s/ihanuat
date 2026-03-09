@@ -22,7 +22,8 @@ public class PestAotvManager {
             return isSamePlot;
 
         boolean inAllowedList = MacroConfig.aotvRoofPlots.contains(currentInfestedPlot);
-        ClientUtils.sendDebugMessage(client, inAllowedList ? "plot in list, performing aotv" : "plot not in list, skipping aotv");
+        ClientUtils.sendDebugMessage(client,
+                inAllowedList ? "plot in list, performing aotv" : "plot not in list, skipping aotv");
         return inAllowedList;
     }
 
@@ -55,7 +56,6 @@ public class PestAotvManager {
             client.execute(() -> client.gameMode.useItem(client.player, net.minecraft.world.InteractionHand.MAIN_HAND));
 
             ClientUtils.waitForYChange(client, startY, 1500);
-            Thread.sleep(40 + (long) (Math.random() * 60));
             isSneakingForAotv = false;
             client.execute(() -> client.options.keyShift.setDown(false));
         } else {
