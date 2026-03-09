@@ -14,6 +14,9 @@ public class PestManager {
     public static volatile String currentInfestedPlot = null;
     public static volatile int currentPestSessionId = 0;
     private static long lastZeroPestTime = 0;
+    private static volatile int predictedAliveCount = 0;
+    private static volatile long lastChatSpawnUpdateMs = 0;
+    private static final long TAB_SYNC_GRACE_MS = 5000;
 
     private static boolean isThresholdMet(int aliveCount) {
         return aliveCount >= MacroConfig.pestThreshold || aliveCount >= 8;
@@ -23,6 +26,8 @@ public class PestManager {
         isCleaningInProgress = false;
         currentInfestedPlot = null;
         lastZeroPestTime = 0;
+        predictedAliveCount = 0;
+        lastChatSpawnUpdateMs = 0;
         currentPestSessionId++;
         
         PestPrepSwapManager.resetState();
@@ -40,6 +45,8 @@ public class PestManager {
         }
 
         PestTabListParser.TabListData data = PestTabListParser.parseTabList(client);
+        syncPredictedAliveFromTab(data.aliveCount);
+        int effectiveAlive = getEffectiveAliveCount(data.aliveCount);
         
         // Update bonus status
         PestBonusManager.isBonusInactive = data.bonusFound;
@@ -49,7 +56,7 @@ public class PestManager {
             PestPrepSwapManager.updatePrepSwapFlag(data.cooldownSeconds, isCleaningInProgress);
 
             // Check if prep swap should be triggered
-            boolean thresholdMet = isThresholdMet(data.aliveCount);
+            boolean thresholdMet = isThresholdMet(effectiveAlive);
             if (!thresholdMet && PestPrepSwapManager.shouldTriggerPrepSwap(
                     currentState, data.cooldownSeconds, isCleaningInProgress, PestReturnManager.isReturnToLocationActive)) {
                 PestPrepSwapManager.triggerPrepSwap(client);
@@ -60,7 +67,7 @@ public class PestManager {
         // Do not apply this during SPRAYING because spray routes can legitimately
         // travel multiple plots with 0 alive pests between spray actions.
         if (currentState == MacroState.State.CLEANING) {
-            if (data.aliveCount <= 0) {
+            if (effectiveAlive <= 0) {
                 if (lastZeroPestTime == 0) {
                     lastZeroPestTime = System.currentTimeMillis();
                 } else if (System.currentTimeMillis() - lastZeroPestTime > 10000) {
@@ -81,8 +88,8 @@ public class PestManager {
             return;
 
         // Check if cleaning should be triggered
-        if (isThresholdMet(data.aliveCount)) {
-            if (data.aliveCount >= 8 && data.aliveCount < 99) {
+        if (isThresholdMet(effectiveAlive)) {
+            if (effectiveAlive >= 8 && effectiveAlive < 99) {
                 client.player.displayClientMessage(Component.literal("§eMax Pests (8) reached. Starting cleaning..."),
                         true);
             }
@@ -91,16 +98,26 @@ public class PestManager {
         }
     }
 
-    public static boolean tryStartCleaningSequenceFromChat(Minecraft client, String requestedPlot) {
+    public static boolean tryStartCleaningSequenceFromChat(Minecraft client, String requestedPlot, int spawnedCount) {
         if (client == null || client.getConnection() == null || client.player == null || isCleaningInProgress) {
             return false;
         }
 
+        if (spawnedCount > 0) {
+            predictedAliveCount = Math.min(99, predictedAliveCount + spawnedCount);
+            lastChatSpawnUpdateMs = System.currentTimeMillis();
+        }
+
         PestTabListParser.TabListData data = PestTabListParser.parseTabList(client);
-        if (!isThresholdMet(data.aliveCount)) {
+        syncPredictedAliveFromTab(data.aliveCount);
+        int effectiveAlive = getEffectiveAliveCount(data.aliveCount);
+
+        if (!isThresholdMet(effectiveAlive)) {
             if (MacroConfig.showDebug) {
                 ClientUtils.sendDebugMessage(client,
-                        "Chat pest trigger ignored: alive=" + data.aliveCount + " < threshold=" + MacroConfig.pestThreshold);
+                        "Chat pest trigger ignored: effective=" + effectiveAlive
+                                + " (chat=" + predictedAliveCount + ", tab=" + data.aliveCount
+                                + ") < threshold=" + MacroConfig.pestThreshold);
             }
             return false;
         }
@@ -112,6 +129,29 @@ public class PestManager {
 
         startCleaningSequence(client, targetPlot);
         return true;
+    }
+
+    private static void syncPredictedAliveFromTab(int tabAliveCount) {
+        if (tabAliveCount < 0) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        if (tabAliveCount >= predictedAliveCount) {
+            predictedAliveCount = tabAliveCount;
+            return;
+        }
+
+        if (now - lastChatSpawnUpdateMs > TAB_SYNC_GRACE_MS) {
+            predictedAliveCount = tabAliveCount;
+        }
+    }
+
+    private static int getEffectiveAliveCount(int tabAliveCount) {
+        if (tabAliveCount < 0) {
+            return predictedAliveCount;
+        }
+        return Math.max(tabAliveCount, predictedAliveCount);
     }
 
     public static void handlePestCleaningFinished(Minecraft client) {

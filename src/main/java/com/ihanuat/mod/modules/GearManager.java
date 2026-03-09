@@ -1,6 +1,7 @@
 package com.ihanuat.mod.modules;
 
 import com.ihanuat.mod.MacroConfig;
+import com.ihanuat.mod.MacroWorkerThread;
 import com.ihanuat.mod.mixin.AccessorInventory;
 import com.ihanuat.mod.util.ClientUtils;
 
@@ -11,10 +12,15 @@ import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.world.item.ItemStack;
 
 public class GearManager {
+    private static volatile int pendingFinalResumeRetries = 0;
+    private static final int MAX_FINAL_RESUME_RETRIES = 3;
+    private static final int FINAL_RESUME_RETRY_DELAY_MS = 700;
+
     public static void reset() {
         WardrobeManager.resetState();
         EquipmentManager.resetState();
         RodManager.resetState();
+        pendingFinalResumeRetries = 0;
     }
 
     public static void triggerPrepSwap(Minecraft client) {
@@ -48,6 +54,15 @@ public class GearManager {
         ClientUtils.waitForGearAndGui(client);
         swapToFarmingToolSync(client);
 
+        if (!waitForContainerCloseSync(client, 3500)) {
+            ClientUtils.sendDebugMessage(client,
+                    "§cFinalizing gear swap aborted: container did not close in time. Not restarting script yet.");
+            scheduleFinalResumeRetry(client);
+            return;
+        }
+
+        pendingFinalResumeRetries = 0;
+
         if (PestManager.isCleaningInProgress)
             return;
 
@@ -58,6 +73,66 @@ public class GearManager {
             ClientUtils.sendDebugMessage(client, "Finalizing gear swap. Restarting farming script...");
             com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
         });
+    }
+
+    private static void scheduleFinalResumeRetry(Minecraft client) {
+        if (pendingFinalResumeRetries >= MAX_FINAL_RESUME_RETRIES) {
+            ClientUtils.sendDebugMessage(client,
+                    "§cFinalizing gear swap retry limit reached. Manual restart may be required.");
+            return;
+        }
+
+        pendingFinalResumeRetries++;
+        int attempt = pendingFinalResumeRetries;
+        ClientUtils.sendDebugMessage(client,
+                "§eRetrying final resume (" + attempt + "/" + MAX_FINAL_RESUME_RETRIES + ")...");
+
+        MacroWorkerThread.getInstance().submit("GearManager-FinalResumeRetry-" + attempt, () -> {
+            MacroWorkerThread.sleep(FINAL_RESUME_RETRY_DELAY_MS);
+            if (PestManager.isCleaningInProgress) {
+                return;
+            }
+            finalResume(client);
+        });
+    }
+
+    private static boolean waitForContainerCloseSync(Minecraft client, long timeoutMs) {
+        long start = System.currentTimeMillis();
+        long lastForceCloseAttempt = 0;
+
+        while (System.currentTimeMillis() - start < timeoutMs) {
+            if (client.player == null) {
+                return false;
+            }
+
+            boolean hasScreenOpen = client.screen != null;
+            boolean hasServerContainerOpen = client.player.containerMenu != null
+                    && client.player.inventoryMenu != null
+                    && client.player.containerMenu.containerId != client.player.inventoryMenu.containerId;
+
+            if (!hasScreenOpen && !hasServerContainerOpen) {
+                return true;
+            }
+
+            if (hasServerContainerOpen && System.currentTimeMillis() - lastForceCloseAttempt >= 250) {
+                int containerId = client.player.containerMenu.containerId;
+                client.execute(() -> {
+                    if (client.player != null && client.getConnection() != null) {
+                        client.getConnection().send(new ServerboundContainerClosePacket(containerId));
+                    }
+                    client.setScreen(null);
+                });
+                lastForceCloseAttempt = System.currentTimeMillis();
+            }
+
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException ignored) {
+                return false;
+            }
+        }
+
+        return false;
     }
 
     public static int findFarmingToolSlot(Minecraft client) {
