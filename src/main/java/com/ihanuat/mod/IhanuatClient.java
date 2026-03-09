@@ -324,6 +324,18 @@ public class IhanuatClient implements ClientModInitializer {
                             Matcher m = p.matcher(plainText);
                             if (m.find()) {
                                 String plot = m.group(1);
+                                int spawnedCount = 0;
+                                Matcher spawnMatcher = Pattern
+                                        .compile("(?i)yuck!\\s*(\\d+)\\D+pest\\s+(?:have|has)\\s+spawned")
+                                        .matcher(plainText);
+                                if (spawnMatcher.find()) {
+                                    try {
+                                        spawnedCount = Integer.parseInt(spawnMatcher.group(1));
+                                    } catch (NumberFormatException ignored) {
+                                        spawnedCount = 0;
+                                    }
+                                }
+                                final int parsedSpawnedCount = spawnedCount;
                                 if (MacroConfig.pestChatTriggerDelay > 0) {
                                     MacroWorkerThread.getInstance().submit("PestClean-ChatTrigger-" + plot, () -> {
                                         if (MacroWorkerThread.shouldAbortTask(Minecraft.getInstance(),
@@ -335,7 +347,8 @@ public class IhanuatClient implements ClientModInitializer {
                                                 MacroState.State.FARMING)) {
                                             return;
                                         }
-                                        PestManager.tryStartCleaningSequenceFromChat(Minecraft.getInstance(), plot);
+                                        PestManager.tryStartCleaningSequenceFromChat(Minecraft.getInstance(), plot,
+                                            parsedSpawnedCount);
                                     });
                                 } else {
                                     MacroWorkerThread.getInstance().submit("PestClean-ChatTrigger-" + plot,
@@ -344,7 +357,8 @@ public class IhanuatClient implements ClientModInitializer {
                                                         MacroState.State.FARMING)) {
                                                     return;
                                                 }
-                                                PestManager.tryStartCleaningSequenceFromChat(Minecraft.getInstance(), plot);
+                                                PestManager.tryStartCleaningSequenceFromChat(
+                                                    Minecraft.getInstance(), plot, parsedSpawnedCount);
                                             });
                                 }
                             } else if (MacroConfig.showDebug) {
