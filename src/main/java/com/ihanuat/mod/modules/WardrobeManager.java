@@ -21,6 +21,7 @@ public class WardrobeManager {
     public static volatile boolean shouldRestartFarmingAfterSwap = false;
     public static volatile long wardrobeOpenPendingTime = 0;
     public static volatile boolean wardrobeGuiDetected = false;
+    public static volatile boolean wardrobeDataLoaded = false;
 
     public static void resetState() {
         isSwappingWardrobe = false;
@@ -31,6 +32,7 @@ public class WardrobeManager {
         wardrobeInteractionTime = 0;
         wardrobeInteractionStage = 0;
         wardrobeGuiDetected = false;
+        wardrobeDataLoaded = false;
         wardrobeOpenPendingTime = 0;
     }
 
@@ -62,6 +64,7 @@ public class WardrobeManager {
             ClientUtils.sendDebugMessage(client, "§eInterrupted equipment swap for wardrobe priority.");
         }
         wardrobeGuiDetected = false;
+        wardrobeDataLoaded = false;
         wardrobeInteractionTime = 0;
         wardrobeInteractionStage = 0;
         shouldRestartFarmingAfterSwap = true;
@@ -88,6 +91,7 @@ public class WardrobeManager {
             ClientUtils.sendDebugMessage(client, "§eInterrupted equipment swap for wardrobe priority.");
         }
         wardrobeGuiDetected = false;
+        wardrobeDataLoaded = false;
         wardrobeInteractionTime = 0;
         wardrobeInteractionStage = 0;
         ClientUtils.sendCommand(client, "/wardrobe");
@@ -97,13 +101,17 @@ public class WardrobeManager {
         if (!isSwappingWardrobe || targetWardrobeSlot == -1)
             return;
 
-        long now = System.currentTimeMillis();
-        if (now - wardrobeInteractionTime < MacroConfig.getRandomizedDelay(MacroConfig.guiClickDelay))
-            return;
-
         String title = screen.getTitle().getString().toLowerCase();
         if (!title.contains("wardrobe"))
             return;
+
+        // Detect GUI immediately by title (works for high ping users)
+        if (!wardrobeGuiDetected) {
+            wardrobeGuiDetected = true;
+            ClientUtils.sendDebugMessage(client, "§6[Wardrobe Debug] GUI detected by title. Waiting for slot data to load...");
+        }
+
+        long now = System.currentTimeMillis();
 
         int slotIdx = 35 + targetWardrobeSlot;
         if (slotIdx >= screen.getMenu().slots.size()) {
@@ -113,18 +121,23 @@ public class WardrobeManager {
         Slot slot = screen.getMenu().slots.get(slotIdx);
         ItemStack stack = slot.getItem();
 
+        // Wait for slot data to load (high ping tolerance)
         if (stack.isEmpty() || stack.getItem().toString().toLowerCase().contains("air")
                 || stack.getItem().toString().toLowerCase().contains("gray_dye")
                 || stack.getHoverName().getString().toLowerCase().contains("gray dye")) {
-            ClientUtils.sendDebugMessage(client, "§6[Wardrobe Debug] GUI open but data not loaded yet (gray dye/empty detected). Target slot: " + targetWardrobeSlot);
-            return;
+            return; // Silently wait for data to load
         }
 
-        if (!wardrobeGuiDetected) {
-            wardrobeGuiDetected = true;
-            ClientUtils.sendDebugMessage(client, "§6[Wardrobe Debug] GUI detected AND VALIDATED. Ready to click slot " + targetWardrobeSlot);
-            wardrobeInteractionTime = System.currentTimeMillis();
+        // Data loaded! Mark it and start interaction timer
+        if (!wardrobeDataLoaded) {
+            wardrobeDataLoaded = true;
+            wardrobeInteractionTime = now;
+            ClientUtils.sendDebugMessage(client, "§6[Wardrobe Debug] Slot data LOADED. Preparing to interact with slot " + targetWardrobeSlot);
         }
+
+        // Respect GUI click delay before any interaction
+        if (now - wardrobeInteractionTime < MacroConfig.getRandomizedDelay(MacroConfig.guiClickDelay))
+            return;
 
         if (wardrobeInteractionStage == 0) {
             String itemName = stack.getItem().toString().toLowerCase();
@@ -221,6 +234,7 @@ public class WardrobeManager {
             trackedWardrobeSlot = targetWardrobeSlot;
             isSwappingWardrobe = false;
             wardrobeGuiDetected = false;
+            wardrobeDataLoaded = false;
             handleWardrobeCompletion(client);
         }
     }
