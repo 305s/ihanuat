@@ -116,6 +116,10 @@ public class IhanuatClient implements ClientModInitializer {
                                 String itemName = slot.getItem().getHoverName().getString();
                                 if (itemName.contains("Accept Offer")) {
                                     lastScannedVisitorTitle = title;
+                                    // Swap to farming tool for bonus farming XP
+                                    if (MacroConfig.swapToolForVisitors) {
+                                        GearManager.swapToFarmingTool(Minecraft.getInstance());
+                                    }
                                     MacroWorkerThread.getInstance().submit("VisitorGui-Scan",
                                             () -> VisitorManager.scanVisitorGui(
                                                     Minecraft.getInstance(), containerScr));

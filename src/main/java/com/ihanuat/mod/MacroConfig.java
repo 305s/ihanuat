@@ -30,6 +30,7 @@ public class MacroConfig {
     public static final boolean DEFAULT_AUTO_ROD_RETURN_TO_FARM = false;
     public static final UnflyMode DEFAULT_UNFLY_MODE = UnflyMode.DOUBLE_TAP_SPACE;
     public static final boolean DEFAULT_AUTO_VISITOR = true;
+    public static final boolean DEFAULT_SWAP_TOOL_FOR_VISITORS = true;
     public static final boolean DEFAULT_AUTO_EQUIPMENT = true;
     public static final boolean DEFAULT_AUTO_STASH_MANAGER = false;
     public static final boolean DEFAULT_AUTO_BOOK_COMBINE = false;
@@ -123,6 +124,7 @@ public class MacroConfig {
     public static boolean autoRodReturnToFarm = DEFAULT_AUTO_ROD_RETURN_TO_FARM;
     public static UnflyMode unflyMode = DEFAULT_UNFLY_MODE;
     public static boolean autoVisitor = DEFAULT_AUTO_VISITOR;
+    public static boolean swapToolForVisitors = DEFAULT_SWAP_TOOL_FOR_VISITORS;
     public static boolean autoEquipment = DEFAULT_AUTO_EQUIPMENT;
     public static boolean autoStashManager = DEFAULT_AUTO_STASH_MANAGER;
     public static boolean autoBookCombine = DEFAULT_AUTO_BOOK_COMBINE;
@@ -334,6 +336,7 @@ public class MacroConfig {
         data.autoRodReturnToFarm = autoRodReturnToFarm;
         data.unflyMode = unflyMode;
         data.autoVisitor = autoVisitor;
+        data.swapToolForVisitors = swapToolForVisitors;
         data.autoEquipment = autoEquipment;
         data.autoStashManager = autoStashManager;
         data.autoBookCombine = autoBookCombine;
@@ -441,6 +444,7 @@ public class MacroConfig {
                 autoRodReturnToFarm = data.autoRodReturnToFarm;
                 unflyMode = data.unflyMode != null ? data.unflyMode : DEFAULT_UNFLY_MODE;
                 autoVisitor = data.autoVisitor;
+                swapToolForVisitors = data.swapToolForVisitors;
                 autoEquipment = data.autoEquipment;
                 autoStashManager = data.autoStashManager;
                 autoBookCombine = data.autoBookCombine;
@@ -554,6 +558,7 @@ public class MacroConfig {
         boolean autoRodReturnToFarm = DEFAULT_AUTO_ROD_RETURN_TO_FARM;
         UnflyMode unflyMode = DEFAULT_UNFLY_MODE;
         boolean autoVisitor = DEFAULT_AUTO_VISITOR;
+        boolean swapToolForVisitors = DEFAULT_SWAP_TOOL_FOR_VISITORS;
         boolean autoEquipment = DEFAULT_AUTO_EQUIPMENT;
         boolean autoStashManager = DEFAULT_AUTO_STASH_MANAGER;
         boolean autoBookCombine = DEFAULT_AUTO_BOOK_COMBINE;

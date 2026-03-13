@@ -351,6 +351,15 @@ public class ConfigScreenFactory {
                                 .setSaveConsumer(newValue -> MacroConfig.visitorThreshold = newValue)
                                 .build());
 
+                autoVisitorCat.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component.literal("Swap to Farming Tool for Visitors"),
+                                                MacroConfig.swapToolForVisitors)
+                                .setDefaultValue(MacroConfig.DEFAULT_SWAP_TOOL_FOR_VISITORS)
+                                .setTooltip(Component.literal(
+                                                "Automatically switch to farming tool when a visitor offer is detected for bonus farming XP."))
+                                .setSaveConsumer(newValue -> MacroConfig.swapToolForVisitors = newValue)
+                                .build());
+
                 // --- Auto George Category ---
                 ConfigCategory autoGeorge = builder.getOrCreateCategory(Component.literal("Auto George"));
 
