@@ -290,6 +290,15 @@ public class ConfigScreenFactory {
                                 .build());
 
                 autoPest.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component.literal("Break Blocks Before AOTV"),
+                                                MacroConfig.breakBlocksBeforeAotv)
+                                .setDefaultValue(MacroConfig.DEFAULT_BREAK_BLOCKS_BEFORE_AOTV)
+                                .setTooltip(Component.literal(
+                                                "Holds down left click for 5 ticks before starting the AOTV roof sequence."))
+                                .setSaveConsumer(newValue -> MacroConfig.breakBlocksBeforeAotv = newValue)
+                                .build());
+
+                autoPest.addEntry(builder.entryBuilder()
                                 .startIntSlider(Component.literal("AOTV Roof Pitch (45-90)"),
                                                 MacroConfig.aotvRoofPitch, 45, 90)
                                 .setDefaultValue(MacroConfig.DEFAULT_AOTV_ROOF_PITCH)
