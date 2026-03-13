@@ -282,6 +282,15 @@ public class ConfigScreenFactory {
                                 .build());
 
                 autoPest.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component.literal("Delay Pest for Crop Fever"),
+                                                MacroConfig.delayPestForCropFever)
+                                .setDefaultValue(MacroConfig.DEFAULT_DELAY_PEST_FOR_CROP_FEVER)
+                                .setTooltip(Component.literal(
+                                                "Delays the pest cleaning sequence if you currently have the Crop Fever buff active."))
+                                .setSaveConsumer(newValue -> MacroConfig.delayPestForCropFever = newValue)
+                                .build());
+
+                autoPest.addEntry(builder.entryBuilder()
                                 .startBooleanToggle(Component.literal("AOTV to Roof"), MacroConfig.aotvToRoof)
                                 .setDefaultValue(MacroConfig.DEFAULT_AOTV_TO_ROOF)
                                 .setTooltip(Component.literal(

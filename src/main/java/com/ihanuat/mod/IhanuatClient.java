@@ -426,6 +426,7 @@ public class IhanuatClient implements ClientModInitializer {
 
                 ProfitManager.handleChatMessage(message);
                 PestManager.handlePhillipMessage(Minecraft.getInstance(), text);
+                com.ihanuat.mod.modules.CropFeverManager.handleChatMessage(Minecraft.getInstance(), plainText);
 
                 // Notify CommandUtils about the chat message for command synchronization
                 com.ihanuat.mod.util.CommandUtils.onChatMessage(plainText);
@@ -570,6 +571,7 @@ public class IhanuatClient implements ClientModInitializer {
             MacroStateManager.periodicUpdate();
             ProfitManager.update(client);
             com.ihanuat.mod.modules.DiscordStatusManager.update(client);
+            com.ihanuat.mod.modules.CropFeverManager.update(client);
 
             if (PestAotvManager.isSneakingForAotv) {
                 if (client.options != null) {
