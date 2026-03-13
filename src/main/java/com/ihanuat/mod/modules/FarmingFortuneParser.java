@@ -24,12 +24,19 @@ public class FarmingFortuneParser {
 
     private static String lastFarmingFortune = "";
     private static String lastCropFortune = "";
+    private static long lastParseTimeMs = 0;
+    private static final long PARSE_INTERVAL_MS = 1000; // re-parse at most once per second
 
     /**
      * Scans the current tab list and caches the farming / crop fortune values.
-     * Call this once per render frame (or tick) before reading the results.
+     * Results are cached for one second to avoid redundant parsing every frame.
      */
     public static void parse(Minecraft client) {
+        long now = System.currentTimeMillis();
+        if (now - lastParseTimeMs < PARSE_INTERVAL_MS)
+            return;
+        lastParseTimeMs = now;
+
         if (client.getConnection() == null || client.player == null)
             return;
 
