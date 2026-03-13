@@ -4,6 +4,7 @@ import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroState;
 import com.ihanuat.mod.MacroStateManager;
 import com.ihanuat.mod.modules.DynamicRestManager;
+import com.ihanuat.mod.modules.FarmingFortuneParser;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -24,6 +25,7 @@ import com.ihanuat.mod.util.ClientUtils;
  * │ current session 0:00 │
  * │ lifetime session 0:00 │
  * │ next rest 0:00 │
+ * │ farming fortune ☘1234 │
  * │ [====progress bar===] │
  * └───────────────────────┘
  *
@@ -54,6 +56,7 @@ public class MacroHudRenderer {
     private static final int STATE_VISITING = 0xFF55FFFF; // cyan
     private static final int STATE_AUTOSELLING = 0xFFAA55FF; // purple
     private static final int STATE_SPRAYING = 0xFFFF55FF; // pink
+    private static final int FORTUNE_COLOR = 0xFFFFAA00; // gold – matches tab-list colour
     private static final int BAR_BG_COLOR = 0xFF1A1A32;
     private static final int BAR_FILL_COLOR = 0xFF6464B4;
 
@@ -206,6 +209,10 @@ public class MacroHudRenderer {
         String nextRestStr = restTriggerMs <= 0 ? "---"
                 : formatTime(Math.max(0, restTriggerMs - System.currentTimeMillis()));
 
+        // Parse farming fortune from the tab list
+        FarmingFortuneParser.parse(client);
+        String fortuneStr = FarmingFortuneParser.getFortuneDisplay();
+
         int panelH = panelH();
 
         // ── Apply position + scale transform ─────────────────────────────────
@@ -238,9 +245,11 @@ public class MacroHudRenderer {
         rowY += ROW_HEIGHT;
         drawRow(g, client, rowY, "current session", formatTime(sessionMs));
         rowY += ROW_HEIGHT;
-        drawRow(g, client, rowY, "lifetime session", formatTime(lifetimeMs));
+        drawRow(g, client, rowY, "lifetime session", formatLifetimeTime(lifetimeMs));
         rowY += ROW_HEIGHT;
         drawRow(g, client, rowY, "next rest", nextRestStr);
+        rowY += ROW_HEIGHT;
+        drawRow(g, client, rowY, "farming fortune", fortuneStr, FORTUNE_COLOR);
         rowY += ROW_HEIGHT;
 
         // ── Progress bar ─────────────────────────────────────────────────────
@@ -264,9 +273,9 @@ public class MacroHudRenderer {
 
     // ── Panel height helper ───────────────────────────────────────────────────
 
-    // top-padding + title + gap + sep + gap + 4 rows + bar(h+3) + bottom-padding
+    // top-padding + title + gap + sep + gap + 5 rows + bar(h+3) + bottom-padding
     static int panelH() {
-        return PADDING_V + FONT_H + 3 + 1 + 3 + 4 * ROW_HEIGHT + BAR_HEIGHT + 3 + PADDING_V;
+        return PADDING_V + FONT_H + 3 + 1 + 3 + 5 * ROW_HEIGHT + BAR_HEIGHT + 3 + PADDING_V;
     }
 
     // ── Title animation ───────────────────────────────────────────────────────
@@ -392,6 +401,31 @@ public class MacroHudRenderer {
         long totalSecs = ms / 1000;
         long hours = totalSecs / 3600;
         long mins = (totalSecs % 3600) / 60;
+        long secs = totalSecs % 60;
+        return hours > 0
+                ? String.format("%d:%02d:%02d", hours, mins, secs)
+                : String.format("%02d:%02d", mins, secs);
+    }
+
+    /**
+     * Formats a lifetime duration.  When the elapsed time reaches 24 hours the
+     * display switches to "{n}d {HH}:{MM}" (no seconds) where {@code n} is
+     * the number of whole days.
+     */
+    private static String formatLifetimeTime(long ms) {
+        long totalSecs = ms / 1000;
+        long totalMins = totalSecs / 60;
+        long totalHours = totalMins / 60;
+
+        if (totalHours >= 24) {
+            long days = totalHours / 24;
+            long hours = totalHours % 24;
+            long mins = totalMins % 60;
+            return String.format("%dd %02d:%02d", days, hours, mins);
+        }
+
+        long hours = totalHours;
+        long mins = totalMins % 60;
         long secs = totalSecs % 60;
         return hours > 0
                 ? String.format("%d:%02d:%02d", hours, mins, secs)
