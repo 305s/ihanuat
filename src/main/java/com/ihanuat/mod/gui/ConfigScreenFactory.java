@@ -433,6 +433,28 @@ public class ConfigScreenFactory {
                                 .setSaveConsumer(newValue -> MacroConfig.persistSessionTimer = newValue)
                                 .build());
 
+                profitTracker.addEntry(new DualButtonEntry(
+                                Component.literal("Reset Timer Stats"),
+                                Component.literal("Reset the session and/or lifetime running-time counters."),
+                                Component.literal("Reset Session Timer"),
+                                button -> {
+                                        com.ihanuat.mod.MacroStateManager.resetSession();
+                                        Minecraft client = Minecraft.getInstance();
+                                        if (client.player != null) {
+                                                client.player.displayClientMessage(
+                                                                Component.literal("\u00A7aSession timer reset!"), true);
+                                        }
+                                },
+                                Component.literal("Reset Lifetime Timer"),
+                                button -> {
+                                        com.ihanuat.mod.MacroStateManager.resetLifetime();
+                                        Minecraft client = Minecraft.getInstance();
+                                        if (client.player != null) {
+                                                client.player.displayClientMessage(
+                                                                Component.literal("\u00A7aLifetime timer reset!"), true);
+                                        }
+                                }));
+
                 profitTracker.addEntry(builder.entryBuilder()
                                 .startBooleanToggle(Component.literal("Compact Profit Calculator"),
                                                 MacroConfig.compactProfitCalculator)

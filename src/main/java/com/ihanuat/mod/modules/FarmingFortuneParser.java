@@ -75,13 +75,22 @@ public class FarmingFortuneParser {
         lastCropFortune = cropFortune;
     }
 
-    /** Returns a display string such as "☘1,234 + ☘567" or "N/A". */
+    /** Returns a display string showing the combined total fortune, e.g. "☘1,801". */
     public static String getFortuneDisplay() {
         if (lastFarmingFortune.isEmpty() && lastCropFortune.isEmpty()) {
             return "N/A";
         }
+        // Parse both values and return the sum when both are present
         if (!lastFarmingFortune.isEmpty() && !lastCropFortune.isEmpty()) {
-            return "\u2618" + lastFarmingFortune + " + \u2618" + lastCropFortune;
+            try {
+                int base = Integer.parseInt(lastFarmingFortune.replace(",", ""));
+                int crop = Integer.parseInt(lastCropFortune.replace(",", ""));
+                int total = base + crop;
+                return "\u2618" + String.format("%,d", total);
+            } catch (NumberFormatException ignored) {
+                // Fallback: show both separately
+                return "\u2618" + lastFarmingFortune + " + \u2618" + lastCropFortune;
+            }
         }
         if (!lastFarmingFortune.isEmpty()) {
             return "\u2618" + lastFarmingFortune;

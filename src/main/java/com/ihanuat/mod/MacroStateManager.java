@@ -22,6 +22,12 @@ public class MacroStateManager {
         com.ihanuat.mod.modules.DynamicRestManager.reset();
     }
 
+    public static void resetLifetime() {
+        lifetimeAccumulated = 0;
+        MacroConfig.lifetimeAccumulated = 0;
+        MacroConfig.save();
+    }
+
     public static void syncFromConfig() {
         lifetimeAccumulated = MacroConfig.lifetimeAccumulated;
     }

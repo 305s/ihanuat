@@ -5,6 +5,7 @@ import com.ihanuat.mod.MacroState;
 import com.ihanuat.mod.MacroStateManager;
 import com.ihanuat.mod.modules.DynamicRestManager;
 import com.ihanuat.mod.modules.FarmingFortuneParser;
+import com.ihanuat.mod.modules.PestTabListParser;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -25,7 +26,9 @@ import com.ihanuat.mod.util.ClientUtils;
  * │ current session 0:00 │
  * │ lifetime session 0:00 │
  * │ next rest 0:00 │
- * │ farming fortune ☘1234 │
+ * │ farming fortune ☘1801 │
+ * │ pest chance 42% │
+ * │ pests alive 3 │   ← only shown when count > 0
  * │ [====progress bar===] │
  * └───────────────────────┘
  *
@@ -57,6 +60,9 @@ public class MacroHudRenderer {
     private static final int STATE_AUTOSELLING = 0xFFAA55FF; // purple
     private static final int STATE_SPRAYING = 0xFFFF55FF; // pink
     private static final int FORTUNE_COLOR = 0xFFFFAA00; // gold – matches tab-list colour
+    private static final int PEST_LOW_COLOR = 0xFFFFFF55; // yellow – pests below threshold
+    private static final int PEST_HIGH_COLOR = 0xFFFF5555; // red – threshold reached
+    private static final int PEST_CHANCE_COLOR = 0xFFAAAAAA; // grey – informational
     private static final int BAR_BG_COLOR = 0xFF1A1A32;
     private static final int BAR_FILL_COLOR = 0xFF6464B4;
 
@@ -213,7 +219,22 @@ public class MacroHudRenderer {
         FarmingFortuneParser.parse(client);
         String fortuneStr = FarmingFortuneParser.getFortuneDisplay();
 
-        int panelH = panelH();
+        // Pest data from the most-recent tab-list parse (updated by PestManager.update)
+        int pestAlive = PestTabListParser.getLastAliveCount();
+        boolean showPestCount = pestAlive > 0;
+        String pestCountStr = "";
+        int pestCountColor = VALUE_COLOR;
+        if (showPestCount) {
+            pestCountStr = String.valueOf(pestAlive);
+            pestCountColor = pestAlive >= MacroConfig.pestThreshold ? PEST_HIGH_COLOR : PEST_LOW_COLOR;
+        }
+        String pestChanceStr = PestTabListParser.getLastPestChance();
+
+        // Dynamic row count: 5 base rows + optional pest rows
+        int extraRows = 0;
+        if (!pestChanceStr.isEmpty()) extraRows++;
+        if (showPestCount) extraRows++;
+        int panelH = panelH(extraRows);
 
         // ── Apply position + scale transform ─────────────────────────────────
         float scale = MacroConfig.hudScale;
@@ -251,6 +272,14 @@ public class MacroHudRenderer {
         rowY += ROW_HEIGHT;
         drawRow(g, client, rowY, "farming fortune", fortuneStr, FORTUNE_COLOR);
         rowY += ROW_HEIGHT;
+        if (!pestChanceStr.isEmpty()) {
+            drawRow(g, client, rowY, "pest chance", pestChanceStr, PEST_CHANCE_COLOR);
+            rowY += ROW_HEIGHT;
+        }
+        if (showPestCount) {
+            drawRow(g, client, rowY, "pests alive", pestCountStr, pestCountColor);
+            rowY += ROW_HEIGHT;
+        }
 
         // ── Progress bar ─────────────────────────────────────────────────────
         long scheduledMs = DynamicRestManager.getScheduledDurationMs();
@@ -273,9 +302,13 @@ public class MacroHudRenderer {
 
     // ── Panel height helper ───────────────────────────────────────────────────
 
-    // top-padding + title + gap + sep + gap + 5 rows + bar(h+3) + bottom-padding
+    // top-padding + title + gap + sep + gap + (5 + extra) rows + bar(h+3) + bottom-padding
     static int panelH() {
-        return PADDING_V + FONT_H + 3 + 1 + 3 + 5 * ROW_HEIGHT + BAR_HEIGHT + 3 + PADDING_V;
+        return panelH(0);
+    }
+
+    static int panelH(int extraRows) {
+        return PADDING_V + FONT_H + 3 + 1 + 3 + (5 + extraRows) * ROW_HEIGHT + BAR_HEIGHT + 3 + PADDING_V;
     }
 
     // ── Title animation ───────────────────────────────────────────────────────
