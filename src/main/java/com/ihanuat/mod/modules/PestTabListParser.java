@@ -13,12 +13,30 @@ public class PestTabListParser {
     private static final Pattern PESTS_ALIVE_PATTERN = Pattern.compile("(?i)(?:Pests|Alive):?\\s*\\(?(\\d+)\\)?");
     private static final Pattern COOLDOWN_PATTERN = Pattern
             .compile("(?i)Cooldown:\\s*\\(?(READY|MAX\\s*PESTS?|(?:(\\d+)m)?\\s*(?:(\\d+)s)?)\\)?");
+    private static final Pattern PEST_CHANCE_PATTERN = Pattern
+            .compile("(?i)(?:Pest|Infestation)\\s+Chance:\\s*(\\d+)\\s*%?");
+
+    /** Most recently parsed alive count; -1 if not yet seen in tab list. */
+    private static volatile int lastAliveCount = -1;
+    /** Most recently parsed pest/infestation chance string e.g. "42%"; empty if not seen. */
+    private static volatile String lastPestChance = "";
+
+    /** Returns the most recently parsed pest alive count, or -1 if not yet parsed. */
+    public static int getLastAliveCount() {
+        return lastAliveCount;
+    }
+
+    /** Returns the most recently parsed pest/infestation chance string, or "" if not parsed. */
+    public static String getLastPestChance() {
+        return lastPestChance;
+    }
 
     public static class TabListData {
         public int aliveCount = -1;
         public int cooldownSeconds = -1;
         public boolean bonusFound = false;
         public Set<String> infestedPlots = new HashSet<>();
+        public String pestChance = "";
     }
 
     public static TabListData parseTabList(Minecraft client) {
@@ -89,8 +107,18 @@ public class PestTabListParser {
             if (normalized.toUpperCase().contains("BONUS: INACTIVE")) {
                 data.bonusFound = true;
             }
+
+            // Parse pest/infestation chance
+            if (data.pestChance.isEmpty()) {
+                Matcher chanceMatcher = PEST_CHANCE_PATTERN.matcher(normalized);
+                if (chanceMatcher.find()) {
+                    data.pestChance = chanceMatcher.group(1) + "%";
+                }
+            }
         }
 
+        lastAliveCount = data.aliveCount;
+        lastPestChance = data.pestChance;
         return data;
     }
 }
